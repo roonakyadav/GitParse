@@ -10,10 +10,11 @@ export interface RepoAnalysis {
   files: RepoFile[];
   processed?: ProcessedData;
   light_mode?: boolean;
-  analysis_mode?: "full" | "light" | "fallback" | "cached";
+  analysis_mode?: "full" | "light" | "fallback" | "cached" | "demo";
   limited?: boolean;
   reason?: string;
   retry_after?: string;
+  safe_mode?: boolean;
 }
 
 export interface ProcessedData {

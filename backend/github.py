@@ -765,3 +765,140 @@ def get_cached_repo_snapshot(owner: str, repo: str):
     
     logger.info(f"[CACHE] No cached snapshot found for {owner}/{repo}")
     return None
+
+
+def generate_demo_analysis(owner: str, repo: str) -> List[RepoFile]:
+    """Generate consistent demo analysis with 10-20 realistic mock files."""
+    logger.info(f"[SAFE_MODE] Generating demo analysis for {owner}/{repo}")
+    
+    # Realistic project files with fake but plausible content
+    demo_files = [
+        # Documentation
+        RepoFile(
+            path="README.md",
+            size=2048,
+            language="markdown",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/README.md"
+        ),
+        RepoFile(
+            path="docs/INSTALL.md",
+            size=1024,
+            language="markdown",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/docs/INSTALL.md"
+        ),
+        RepoFile(
+            path="docs/API.md",
+            size=3072,
+            language="markdown",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/docs/API.md"
+        ),
+        
+        # Configuration files
+        RepoFile(
+            path="package.json",
+            size=512,
+            language="json",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/package.json"
+        ),
+        RepoFile(
+            path="requirements.txt",
+            size=256,
+            language="text",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/requirements.txt"
+        ),
+        RepoFile(
+            path="setup.py",
+            size=768,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/setup.py"
+        ),
+        RepoFile(
+            path="pyproject.toml",
+            size=384,
+            language="toml",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/pyproject.toml"
+        ),
+        RepoFile(
+            path=".gitignore",
+            size=128,
+            language="gitignore",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/.gitignore"
+        ),
+        
+        # Source code files
+        RepoFile(
+            path="src/main.py",
+            size=4096,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/src/main.py"
+        ),
+        RepoFile(
+            path="src/app.py",
+            size=3072,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/src/app.py"
+        ),
+        RepoFile(
+            path="src/utils.py",
+            size=2048,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/src/utils.py"
+        ),
+        RepoFile(
+            path="src/models.py",
+            size=1536,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/src/models.py"
+        ),
+        RepoFile(
+            path="src/api.py",
+            size=2560,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/src/api.py"
+        ),
+        
+        # Test files
+        RepoFile(
+            path="tests/test_main.py",
+            size=1024,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/tests/test_main.py"
+        ),
+        RepoFile(
+            path="tests/test_api.py",
+            size=768,
+            language="python",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/tests/test_api.py"
+        ),
+        
+        # Build/Deployment
+        RepoFile(
+            path="Dockerfile",
+            size=512,
+            language="dockerfile",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/Dockerfile"
+        ),
+        RepoFile(
+            path="docker-compose.yml",
+            size=384,
+            language="yaml",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/docker-compose.yml"
+        ),
+        
+        # Additional files to reach 10-20 range
+        RepoFile(
+            path="Makefile",
+            size=256,
+            language="makefile",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/Makefile"
+        ),
+        RepoFile(
+            path="LICENSE",
+            size=1024,
+            language="text",
+            download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/LICENSE"
+        )
+    ]
+    
+    logger.info(f"[SAFE_MODE] Generated {len(demo_files)} demo files for {owner}/{repo}")
+    return demo_files

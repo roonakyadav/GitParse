@@ -17,6 +17,7 @@ class RepoAnalysis(BaseModel):
     limited: Optional[bool] = False
     reason: Optional[str] = None
     retry_after: Optional[str] = None
+    safe_mode: Optional[bool] = False
     
     class Config:
         # Allow additional fields to be set dynamically

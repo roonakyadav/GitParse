@@ -195,7 +195,28 @@ export default function AnalyzePage() {
       </div>
 
       {/* Analysis mode warning */}
-      {repoData.limited && repoData.reason === 'github_rate_limit' ? (
+      {repoData.safe_mode ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-blue-900/20 border border-blue-800/50 rounded-xl p-4">
+            <div className="flex items-start space-x-3">
+              <div className="text-blue-500 flex-shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-blue-400">Demo Mode</h3>
+                <p className="text-sm text-blue-300 mt-1">
+                  Simulated analysis for demonstration purposes. Showing realistic project structure.
+                </p>
+                <p className="text-xs text-blue-400 mt-1">
+                  Analysis mode: {repoData.analysis_mode || 'demo'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : repoData.limited && repoData.reason === 'github_rate_limit' ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
           <div className="bg-rose-900/20 border border-rose-800/50 rounded-xl p-4">
             <div className="flex items-start space-x-3">
