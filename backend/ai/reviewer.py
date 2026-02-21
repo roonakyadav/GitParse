@@ -13,13 +13,62 @@ logger = logging.getLogger(__name__)
 class ReviewEngine:
     def __init__(self):
         self.cache = {}
-        self.max_chunks_per_request = 10
+        self.max_chunks_per_request = 15
         self.cache_ttl = 3600  # 1 hour
     
     def _get_cache_key(self, chunks: List[Dict], review_type: str) -> str:
         """Generate cache key for chunks and review type."""
         content = str([chunk.get("content", "") for chunk in chunks[:5]]) + review_type
         return hashlib.md5(content.encode()).hexdigest()
+    
+    def _map_chunk_ids_to_actual_data(self, result: Dict[str, Any], chunk_mapping: Dict[str, Dict]) -> Dict[str, Any]:
+        """Map chunk_id to actual file/lines/snippet data for all issues in the result."""
+        logger.debug(f"Mapping chunk IDs for result with keys: {list(result.keys())}")
+        
+        # Process each type of issue
+        for issue_type in ['issues', 'security', 'architecture', 'skills']:
+            if issue_type in result:
+                updated_issues = []
+                for issue in result[issue_type]:
+                    # Make a copy of the issue to modify
+                    updated_issue = issue.copy()
+                    
+                    # Check if the issue has a chunk_id
+                    chunk_id = updated_issue.get('chunk_id')
+                    if chunk_id and chunk_id in chunk_mapping:
+                        chunk_data = chunk_mapping[chunk_id]
+                        
+                        # Update file, lines, and snippet from the actual chunk
+                        updated_issue['file'] = chunk_data['file']
+                        start_line = chunk_data['start_line']
+                        end_line = chunk_data['end_line']
+                        updated_issue['lines'] = f"{start_line}-{end_line}"
+                        
+                        # Update snippet if it's not already set or if it's a placeholder
+                        if not updated_issue.get('snippet') or updated_issue.get('snippet') == 'Not found in provided context':
+                            content = chunk_data['content']
+                            # Take a reasonable portion of the content as the snippet
+                            if len(content) > 200:
+                                updated_issue['snippet'] = content[:200] + "..."
+                            else:
+                                updated_issue['snippet'] = content
+                    elif chunk_id == 'global analysis':
+                        # For global analysis, keep the issue but mark appropriately
+                        updated_issue['file'] = 'Multiple files'
+                        updated_issue['lines'] = 'N/A'
+                        updated_issue['snippet'] = 'Cross-file analysis'
+                    else:
+                        # If no specific chunk_id, or chunk_id not found in mapping, mark as global analysis
+                        updated_issue['file'] = 'Multiple files'
+                        updated_issue['lines'] = 'N/A'
+                        updated_issue['snippet'] = 'Cross-file analysis'
+                        updated_issue['chunk_id'] = 'global analysis'
+                    
+                    updated_issues.append(updated_issue)
+                
+                result[issue_type] = updated_issues
+        
+        return result
     
     def _is_cache_valid(self, timestamp: float) -> bool:
         """Check if cache entry is still valid."""
@@ -43,32 +92,87 @@ class ReviewEngine:
             logger.warning("No chunks found in index data")
             return []
         
-        # Ensure minimum chunks for analysis
+        # Add debug logging
+        logger.info(f"Total chunks available: {len(all_chunks)}")
+        
+        # Log the first chunk to inspect the schema
+        if all_chunks:
+            logger.info(f"Sample chunk schema: {list(all_chunks[0].keys()) if all_chunks else 'No chunks'}")
+            logger.info(f"Full sample chunk: {all_chunks[0] if all_chunks else 'No chunks'}")
+        
+        # Filter out empty chunks and validate content
+        valid_chunks = []
+        for chunk in all_chunks:
+            # Support multiple possible field names for content
+            content = (chunk.get("content") or 
+                      chunk.get("text") or 
+                      chunk.get("code") or 
+                      chunk.get("body") or "")
+            
+            # Support multiple possible field names for file path
+            file_path = (chunk.get("file_path") or 
+                         chunk.get("file") or 
+                         chunk.get("path") or 
+                         chunk.get("filename") or "")
+            
+            # Support multiple possible field names for line numbers
+            start_line = (chunk.get("start_line") or 
+                          chunk.get("start") or 
+                          chunk.get("lines", {}).get("start") if isinstance(chunk.get("lines"), dict) else None or 
+                          "")
+            
+            end_line = (chunk.get("end_line") or 
+                        chunk.get("end") or 
+                        chunk.get("lines", {}).get("end") if isinstance(chunk.get("lines"), dict) else None or 
+                        "")
+            
+            # Verify chunk has valid content and metadata
+            if content and len(content.strip()) > 0 and file_path:
+                # Remove the hard length threshold to ensure valid chunks pass validation
+                valid_chunks.append(chunk)
+            else:
+                logger.debug(f"Invalid chunk data: file_path='{file_path}', content length={len(str(content)) if content else 0}, start_line={start_line}")
+        
+        logger.info(f"Valid chunks after filtering: {len(valid_chunks)}")
+        
+        # If we have fewer than our minimum, use what we have
         min_chunks = 5
-        if len(all_chunks) < min_chunks:
-            logger.info(f"Only {len(all_chunks)} chunks found, using all of them")
-            return all_chunks
+        if len(valid_chunks) < min_chunks:
+            logger.info(f"Only {len(valid_chunks)} valid chunks found, using all of them")
+            return valid_chunks
         
         # Sort by importance (token count, dependencies, etc.)
         scored_chunks = []
-        for chunk in all_chunks:
+        for chunk in valid_chunks:
             score = 0
             
             # Prefer larger chunks (more content)
             token_count = chunk.get("token_count", 0)
-            score += min(token_count / 100, 5)
+            # Support multiple possible field names for content
+            content = (chunk.get("content") or 
+                      chunk.get("text") or 
+                      chunk.get("code") or 
+                      chunk.get("body") or "")
+            if token_count > 0:
+                score += min(token_count / 100, 5)
+            else:
+                # Fallback to character count if token count not available
+                score += min(len(content) / 200, 5)
             
             # Prefer chunks with dependencies
             if chunk.get("dependencies"):
                 score += len(chunk["dependencies"]) * 2
             
             # Prefer chunks from important files
-            file_path = chunk.get("file", "")
+            # Support multiple possible field names for file path
+            file_path = (chunk.get("file_path") or 
+                         chunk.get("file") or 
+                         chunk.get("path") or 
+                         chunk.get("filename") or "")
             if any(keyword in file_path.lower() for keyword in ["main", "index", "app", "server"]):
                 score += 3
             
             # Prefer chunks with complex code (heuristic)
-            content = chunk.get("content", "")
             if "class " in content or "def " in content:
                 score += 2
             if "import " in content or "require(" in content:
@@ -84,13 +188,33 @@ class ReviewEngine:
         scored_chunks.sort(key=lambda x: x[0], reverse=True)
         selected_chunks = [chunk for _, chunk in scored_chunks[:max(max_chunks, min_chunks)]]
         
-        logger.info(f"Selected {len(selected_chunks)} important chunks from {len(all_chunks)} total")
+        # Additional debug logging
+        logger.info(f"Selected {len(selected_chunks)} important chunks from {len(valid_chunks)} valid chunks")
+        
+        # Print debug info about selected chunks
+        if selected_chunks:
+            avg_length = sum(len(chunk.get('content', '')) for chunk in selected_chunks) / len(selected_chunks)
+            logger.info(f"Number of chunks sent to AI: {len(selected_chunks)}")
+            logger.info(f"Average chunk length: {avg_length:.2f} characters")
+            logger.info(f"First chunk preview: {selected_chunks[0].get('content', '')[:500] if selected_chunks else 'None'}...")
+        
         return selected_chunks
     
     async def _analyze_single_review(self, chunks: List[Dict], review_type: str) -> Dict[str, Any]:
         """Analyze chunks for a single review type."""
         review_logger = logging.getLogger("ai.review")
         review_logger.info(f"Starting {review_type} analysis with {len(chunks)} chunks")
+        
+        # Create chunk ID mapping for evidence verification
+        chunk_mapping = {}
+        for i, chunk in enumerate(chunks, 1):
+            chunk_id = f"CHUNK_{i}"
+            chunk_mapping[chunk_id] = {
+                'file': chunk.get('file_path') or chunk.get('file') or chunk.get('path') or chunk.get('filename') or 'unknown',
+                'start_line': chunk.get('start_line') or chunk.get('start') or chunk.get('lines', {}).get('start') or 1,
+                'end_line': chunk.get('end_line') or chunk.get('end') or chunk.get('lines', {}).get('end') or 1,
+                'content': chunk.get('content') or chunk.get('text') or chunk.get('code') or chunk.get('body') or ''
+            }
         
         # Check cache
         cache_key = self._get_cache_key(chunks, review_type)
@@ -122,6 +246,9 @@ class ReviewEngine:
             # Parse response
             result = response_parser.parse_review_response(response, review_type)
             review_logger.info(f"Parsed result for {review_type}: {result}")
+            
+            # Map chunk_id to actual file/lines/snippet data
+            result = self._map_chunk_ids_to_actual_data(result, chunk_mapping)
             
             # If parsing failed completely, return structured error instead of heuristic
             if not result:
@@ -197,6 +324,39 @@ class ReviewEngine:
                 "skills": [],
                 "score": 0
             }
+        
+        # Validate chunks have meaningful content
+        valid_chunks = []
+        for chunk in important_chunks:
+            # Support multiple possible field names for content
+            content = (chunk.get("content") or 
+                      chunk.get("text") or 
+                      chunk.get("code") or 
+                      chunk.get("body") or "")
+            if content and len(content.strip()) > 0:
+                valid_chunks.append(chunk)
+            else:
+                # Support multiple possible field names for file path
+                file_path = (chunk.get("file_path") or 
+                             chunk.get("file") or 
+                             chunk.get("path") or 
+                             chunk.get("filename") or "unknown")
+                logger.warning(f"Found empty chunk: {file_path}")
+        
+        if not valid_chunks:
+            review_logger.warning("All selected chunks have empty content")
+            return {
+                "success": False,
+                "error": "All chunks have empty content",
+                "issues": [],
+                "security": [],
+                "architecture": [],
+                "skills": [],
+                "score": 0
+            }
+        
+        # Update important_chunks with validated chunks
+        important_chunks = valid_chunks
         
         # Run all review types concurrently
         review_types = ["quality", "security", "architecture", "skills"]

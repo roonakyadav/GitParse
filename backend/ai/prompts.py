@@ -4,7 +4,33 @@
 SYSTEM_PROMPT = """You are a senior code reviewer. Analyze the given code and return ONLY valid JSON.
 No explanations, no markdown, no prose outside the JSON structure.
 Any text outside JSON is invalid and will be rejected.
-Follow the exact schema specified in each prompt."""
+Follow the exact schema specified in each prompt.
+
+GROUNDING RULES:
+- You MUST ONLY reference code provided in chunks below
+- NEVER invent examples or code snippets not present in chunks
+- All code references must be exact copies from provided chunks
+- Every finding MUST include evidence from provided chunks
+
+ANALYSIS EXPECTATION:
+- You MUST analyze structure, duplication, naming, complexity, and architectural patterns even if no obvious bug exists
+- You may analyze patterns across multiple chunks
+- You may infer implications from code structure
+- You may identify architectural issues from code organization
+- You may suggest improvements based on best practices
+
+MINIMUM OUTPUT REQUIREMENT:
+- If the repo truly has minimal issues, return at least minor suggestions
+- Avoid returning completely empty arrays
+- Always provide some analysis, even if only minor improvements
+
+EVIDENCE REQUIREMENTS:
+- Every file reference must exist in provided chunks
+- Every line number must be within chunk ranges
+- Every code snippet must be exact copy from chunks
+- For every finding, reference the CHUNK_ID used
+- When evidence is missing, use 'Not found in chunks'
+- If no specific chunk applies, mark as 'global analysis'"""
 
 QUALITY_REVIEW_TEMPLATE = """{system_prompt}
 
@@ -32,20 +58,24 @@ You MUST return ONLY this exact JSON structure:
 
 CRITICAL REQUIREMENTS:
 - EVERY issue MUST include: file, lines, snippet, problem, impact, fix
-- Use "Not available" only if you cannot determine the field
-- snippet must be exact code from the provided chunks
+- snippet must be EXACT code from provided chunks above
 - lines must be "start-end" format (e.g., "15-22")
 - problem must explain the technical issue clearly
 - impact must explain why this matters for the codebase
 - fix must provide actionable improvement steps
+- When evidence is missing, use 'Not found in chunks'
 
-Focus on:
-- Code readability and maintainability
-- Performance bottlenecks
-- Error handling
-- Code duplication
-- Naming conventions
-- Documentation gaps
+MANDATORY ANALYSIS AREAS:
+- You must analyze structure, duplication, naming, complexity, and architectural patterns
+- Look for code readability and maintainability issues
+- Identify performance bottlenecks
+- Check error handling patterns
+- Find code duplication
+- Evaluate naming conventions
+- Assess documentation gaps
+- Identify minor improvements even if no major issues exist
+
+MINIMUM OUTPUT: Return at least 1-2 findings even for clean codebases.
 
 Return ONLY JSON. No other text."""
 
@@ -76,22 +106,25 @@ You MUST return ONLY this exact JSON structure:
 
 CRITICAL REQUIREMENTS:
 - EVERY security issue MUST include: file, lines, snippet, problem, impact, fix
-- Use "Not available" only if you cannot determine the field
-- snippet must be exact code from the provided chunks
+- Use "Not found in chunks" only if you cannot determine the field from provided chunks
+- snippet must be EXACT code from provided chunks above
 - lines must be "start-end" format (e.g., "15-22")
 - problem must explain the security vulnerability clearly
 - impact must explain why this is a security risk
 - fix must provide actionable security improvement steps
-- cwe should be the relevant CWE identifier if known
+- NEVER invent code snippets - use exact copies from chunks
+- If no relevant chunk exists, use snippet: "Not found in provided context"
+- cwe should be relevant CWE identifier if known
 
 Focus on:
 - SQL injection
 - XSS vulnerabilities
 - Authentication/authorization flaws
-- Sensitive data exposure
 - Input validation
 - Cryptographic issues
 - Dependency vulnerabilities
+
+MINIMUM OUTPUT: Return at least 1-2 findings even for secure codebases.
 
 Return ONLY JSON. No other text."""
 
@@ -122,12 +155,14 @@ You MUST return ONLY this exact JSON structure:
 
 CRITICAL REQUIREMENTS:
 - EVERY architecture issue MUST include: file, lines, snippet, problem, impact, fix
-- Use "Not available" only if you cannot determine the field
-- snippet must be exact code from the provided chunks
+- Use "Not found in chunks" only if you cannot determine the field from provided chunks
+- snippet must be EXACT code from provided chunks above
 - lines must be "start-end" format (e.g., "15-22")
 - problem must explain the architectural issue clearly
 - impact must explain why this affects the architecture
 - fix must provide actionable architectural improvement steps
+- NEVER invent code snippets - use exact copies from chunks
+- If no relevant chunk exists, use snippet: "Not found in provided context"
 - principle should reference relevant architectural principles
 
 Focus on:
@@ -138,6 +173,8 @@ Focus on:
 - Scalability issues
 - Code organization
 - Module dependencies
+
+MINIMUM OUTPUT: Return at least 1-2 findings even for well-architected codebases.
 
 Return ONLY JSON. No other text."""
 
@@ -169,12 +206,14 @@ You MUST return ONLY this exact JSON structure:
 
 CRITICAL REQUIREMENTS:
 - EVERY skill gap MUST include: file, lines, snippet, gap, impact, resource
-- Use "Not available" only if you cannot determine the field
-- snippet must be exact code from the provided chunks
+- Use "Not found in chunks" only if you cannot determine the field from provided chunks
+- snippet must be EXACT code from provided chunks above
 - lines must be "start-end" format (e.g., "15-22")
 - gap must explain what skill is missing or could improve
 - impact must explain why this skill matters for the codebase
 - resource must provide specific learning resource suggestions
+- NEVER invent code snippets - use exact copies from chunks
+- If no relevant chunk exists, use snippet: "Not found in provided context"
 - priority indicates urgency of learning this skill
 
 Focus on:
@@ -185,6 +224,8 @@ Focus on:
 - Testing approaches
 - Performance optimization
 - Code organization
+
+MINIMUM OUTPUT: Return at least 1-2 findings even for skilled codebases.
 
 Return ONLY JSON. No other text."""
 
@@ -203,16 +244,45 @@ def get_prompt_template(review_type: str) -> str:
     # Only format system prompt for now, chunks will be formatted separately
     return templates[review_type].format(system_prompt=SYSTEM_PROMPT)
 
-def format_chunks_for_prompt(chunks: list, max_chunks: int = 10) -> str:
-    """Format code chunks for prompt input."""
+def format_chunks_for_prompt(chunks: list, max_chunks: int = 15) -> str:
+    """Format code chunks for prompt input with clear delimiters."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     selected_chunks = chunks[:max_chunks]
+    
+    # Log debug information about chunks being sent
+    logger.info(f"Formatting {len(selected_chunks)} chunks for AI prompt (max_chunks: {max_chunks})")
     
     formatted = []
     for i, chunk in enumerate(selected_chunks, 1):
         chunk_text = chunk.get("content", "").strip()
+        
+        # Verify chunk has content
+        if not chunk_text:
+            logger.warning(f"Empty chunk found at position {i}, file: {chunk.get('file_path', 'unknown')} or {chunk.get('file', 'unknown')}")
+            continue
+        
         if len(chunk_text) > 2000:
             chunk_text = chunk_text[:2000] + "..."
         
-        formatted.append(f"Chunk {i} ({chunk.get('file', 'unknown')}:{chunk.get('start_line', '?')}):\n{chunk_text}")
+        # Create clearly delimited chunk with metadata and unique ID
+        # Try both possible field names for file path
+        file_path = chunk.get('file_path', chunk.get('file', 'unknown'))
+        start_line = chunk.get('start_line', chunk.get('start', '?'))
+        end_line = chunk.get('end_line', chunk.get('end', '?'))
+        language = chunk.get('language', chunk.get('lang', 'unknown'))
+        
+        formatted_chunk = f"""[CHUNK_{i}]
+FILE: {file_path}
+LINES: {start_line}-{end_line}
+CODE:\n{chunk_text}
+
+"""
+        
+        formatted.append(formatted_chunk)
     
-    return "\n\n".join(formatted)
+    result = "\n\n".join(formatted)
+    logger.info(f"Formatted prompt contains {len(result)} characters from {len(formatted)} valid chunks")
+    
+    return result

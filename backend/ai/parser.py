@@ -15,6 +15,7 @@ class Issue(BaseModel):
     problem: str
     impact: str
     fix: str
+    chunk_id: Optional[str] = None
 
 class SecurityIssue(BaseModel):
     type: str = Field(default="security")
@@ -26,6 +27,7 @@ class SecurityIssue(BaseModel):
     impact: str
     fix: str
     cwe: Optional[str] = None
+    chunk_id: Optional[str] = None
 
 class ArchitectureIssue(BaseModel):
     type: str = Field(default="architecture")
@@ -37,6 +39,7 @@ class ArchitectureIssue(BaseModel):
     impact: str
     fix: str
     principle: Optional[str] = None
+    chunk_id: Optional[str] = None
 
 class SkillGap(BaseModel):
     category: str = Field(pattern="^(language|framework|pattern|tool)$")
@@ -49,6 +52,7 @@ class SkillGap(BaseModel):
     impact: str
     resource: Optional[str] = None
     priority: str = Field(pattern="^(low|medium|high)$")
+    chunk_id: Optional[str] = None
 
 class ReviewResult(BaseModel):
     issues: List[Issue] = Field(default_factory=list)
@@ -108,12 +112,12 @@ class ResponseParser:
         
         # Ensure all required fields exist with fallbacks
         required_fields = {
-            "file": "Not available",
-            "lines": "Not available", 
-            "snippet": "Not available",
-            "problem": "Not available",
-            "impact": "Not available",
-            "fix": "Not available"
+            "file": "Not found in chunks",
+            "lines": "Not found in chunks", 
+            "snippet": "Not found in provided context",
+            "problem": "Not found in chunks",
+            "impact": "Not found in chunks",
+            "fix": "Not found in chunks"
         }
         
         # Add missing required fields with fallbacks
@@ -132,10 +136,10 @@ class ResponseParser:
             compatible_data["principle"] = None
         elif issue_type == "skills":
             skill_fields = {
-                "category": "Not available",
-                "skill": "Not available", 
+                "category": "Not found in chunks",
+                "skill": "Not found in chunks", 
                 "level": "beginner",
-                "resource": "Not available",
+                "resource": "Not found in chunks",
                 "priority": "medium"
             }
             for field, fallback in skill_fields.items():
