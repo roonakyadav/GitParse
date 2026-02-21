@@ -18,3 +18,10 @@ build/
 
 # OS
 .DS_Store
+# Generated outputs
+phase1.json
+phase2.json
+phase2_fixed.json
+backend/phase1.json
+backend/phase2.json
+backend/phase2_fixed.json
