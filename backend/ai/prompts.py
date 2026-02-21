@@ -19,14 +19,25 @@ You MUST return ONLY this exact JSON structure:
     {{
       "type": "quality",
       "severity": "low|medium|high|critical",
-      "message": "Brief description of issue",
       "file": "filename",
-      "line": 123,
-      "suggestion": "How to fix it"
+      "lines": "start-end",
+      "snippet": "exact code excerpt",
+      "problem": "clear technical explanation",
+      "impact": "why it matters",
+      "fix": "concrete improvement suggestion"
     }}
   ],
   "score": 85
 }}
+
+CRITICAL REQUIREMENTS:
+- EVERY issue MUST include: file, lines, snippet, problem, impact, fix
+- Use "Not available" only if you cannot determine the field
+- snippet must be exact code from the provided chunks
+- lines must be "start-end" format (e.g., "15-22")
+- problem must explain the technical issue clearly
+- impact must explain why this matters for the codebase
+- fix must provide actionable improvement steps
 
 Focus on:
 - Code readability and maintainability
@@ -51,15 +62,27 @@ You MUST return ONLY this exact JSON structure:
     {{
       "type": "security",
       "severity": "low|medium|high|critical",
-      "message": "Security issue description",
       "file": "filename",
-      "line": 123,
-      "cwe": "CWE-ID",
-      "suggestion": "Security fix recommendation"
+      "lines": "start-end",
+      "snippet": "exact code excerpt",
+      "problem": "clear technical explanation",
+      "impact": "why it matters",
+      "fix": "concrete improvement suggestion",
+      "cwe": "CWE-ID"
     }}
   ],
   "score": 90
 }}
+
+CRITICAL REQUIREMENTS:
+- EVERY security issue MUST include: file, lines, snippet, problem, impact, fix
+- Use "Not available" only if you cannot determine the field
+- snippet must be exact code from the provided chunks
+- lines must be "start-end" format (e.g., "15-22")
+- problem must explain the security vulnerability clearly
+- impact must explain why this is a security risk
+- fix must provide actionable security improvement steps
+- cwe should be the relevant CWE identifier if known
 
 Focus on:
 - SQL injection
@@ -85,15 +108,27 @@ You MUST return ONLY this exact JSON structure:
     {{
       "type": "architecture",
       "severity": "low|medium|high|critical",
-      "message": "Architectural concern",
       "file": "filename",
-      "line": 123,
-      "principle": "SOLID/Dry/Kiss/etc",
-      "suggestion": "Architectural improvement"
+      "lines": "start-end",
+      "snippet": "exact code excerpt",
+      "problem": "clear technical explanation",
+      "impact": "why it matters",
+      "fix": "concrete improvement suggestion",
+      "principle": "SOLID/Dry/Kiss/etc"
     }}
   ],
   "score": 80
 }}
+
+CRITICAL REQUIREMENTS:
+- EVERY architecture issue MUST include: file, lines, snippet, problem, impact, fix
+- Use "Not available" only if you cannot determine the field
+- snippet must be exact code from the provided chunks
+- lines must be "start-end" format (e.g., "15-22")
+- problem must explain the architectural issue clearly
+- impact must explain why this affects the architecture
+- fix must provide actionable architectural improvement steps
+- principle should reference relevant architectural principles
 
 Focus on:
 - SOLID principles violations
@@ -120,13 +155,27 @@ You MUST return ONLY this exact JSON structure:
       "category": "language|framework|pattern|tool",
       "skill": "Specific skill name",
       "level": "beginner|intermediate|advanced",
+      "file": "filename",
+      "lines": "start-end",
+      "snippet": "exact code excerpt",
       "gap": "What's missing or could improve",
+      "impact": "why it matters",
       "resource": "Learning resource suggestion",
       "priority": "low|medium|high"
     }}
   ],
   "score": 75
 }}
+
+CRITICAL REQUIREMENTS:
+- EVERY skill gap MUST include: file, lines, snippet, gap, impact, resource
+- Use "Not available" only if you cannot determine the field
+- snippet must be exact code from the provided chunks
+- lines must be "start-end" format (e.g., "15-22")
+- gap must explain what skill is missing or could improve
+- impact must explain why this skill matters for the codebase
+- resource must provide specific learning resource suggestions
+- priority indicates urgency of learning this skill
 
 Focus on:
 - Modern language features

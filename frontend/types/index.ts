@@ -56,17 +56,28 @@ export type Severity = 'high' | 'medium' | 'low';
 
 export interface ReviewItem {
   file?: string;
-  description: string;
+  lines?: string;
+  snippet?: string;
+  problem?: string;
+  impact?: string;
+  fix?: string;
+  description?: string; // Backward compatibility
   severity: Severity;
-  suggestion?: string;
+  suggestion?: string; // Backward compatibility
   resource?: string;
 }
 
 export interface SkillGap {
   skill: string;
-  description: string;
+  file?: string;
+  lines?: string;
+  snippet?: string;
+  gap?: string;
+  impact?: string;
+  resource?: string;
+  resources?: string[]; // Backward compatibility
   priority: Severity;
-  resources: string[];
+  description?: string; // Backward compatibility
 }
 
 export interface AIReviewResponse {

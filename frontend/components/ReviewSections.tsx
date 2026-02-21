@@ -46,25 +46,57 @@ export function ReviewItemCard({ item, title, icon }: ReviewItemCardProps) {
             <SeverityBadge severity={item.severity} />
           </div>
           
-          {item.file && (
-            <div className="mb-2">
-              <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md">
-                📁 {item.file}
-              </span>
+          {/* File and lines information */}
+          {(item.file || item.lines) && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {item.file && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md">
+                  📁 {item.file}
+                </span>
+              )}
+              {item.lines && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md">
+                  📍 Lines {item.lines}
+                </span>
+              )}
             </div>
           )}
           
-          <p className="text-sm text-gray-700 mb-2">{item.description || 'No description available'}</p>
+          {/* Problem description */}
+          <p className="text-sm text-gray-700 mb-2">
+            {item.problem || item.description || 'No description available'}
+          </p>
           
-          {item.suggestion && (
-            <div className="mt-2 p-2 bg-blue-50 rounded-md">
-              <p className="text-sm text-blue-800">
-                <span className="font-medium">💡 Suggestion:</span> {item.suggestion}
+          {/* Code snippet */}
+          {item.snippet && item.snippet !== 'Not available' && (
+            <div className="mb-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+              <p className="text-xs font-medium text-gray-600 mb-1">Code Evidence:</p>
+              <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap">
+                {item.snippet}
+              </pre>
+            </div>
+          )}
+          
+          {/* Impact explanation */}
+          {item.impact && item.impact !== 'Not available' && (
+            <div className="mb-2 p-2 bg-yellow-50 rounded-md border border-yellow-200">
+              <p className="text-sm text-yellow-800">
+                <span className="font-medium">⚠️ Impact:</span> {item.impact}
               </p>
             </div>
           )}
           
-          {item.resource && (
+          {/* Fix suggestion */}
+          {(item.fix || item.suggestion) && (
+            <div className="mt-2 p-2 bg-blue-50 rounded-md border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <span className="font-medium">💡 Fix:</span> {item.fix || item.suggestion}
+              </p>
+            </div>
+          )}
+          
+          {/* Learning resource */}
+          {item.resource && item.resource !== 'Not available' && (
             <div className="mt-2">
               <a
                 href={item.resource}
@@ -99,12 +131,61 @@ export function SkillGapCard({ skillGap }: SkillGapCardProps) {
             <SeverityBadge severity={skillGap.priority} />
           </div>
           
-          <p className="text-sm text-gray-700 mb-3">{skillGap.description || 'No description available'}</p>
+          {/* File and lines information */}
+          {(skillGap.file || skillGap.lines) && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {skillGap.file && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md">
+                  📁 {skillGap.file}
+                </span>
+              )}
+              {skillGap.lines && (
+                <span className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-md">
+                  📍 Lines {skillGap.lines}
+                </span>
+              )}
+            </div>
+          )}
           
-          {skillGap.resources && skillGap.resources.length > 0 && (
+          {/* Skill gap description */}
+          <p className="text-sm text-gray-700 mb-2">
+            {skillGap.gap || skillGap.description || 'No description available'}
+          </p>
+          
+          {/* Code snippet */}
+          {skillGap.snippet && skillGap.snippet !== 'Not available' && (
+            <div className="mb-2 p-2 bg-gray-50 rounded-md border border-gray-200">
+              <p className="text-xs font-medium text-gray-600 mb-1">Code Example:</p>
+              <pre className="text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap">
+                {skillGap.snippet}
+              </pre>
+            </div>
+          )}
+          
+          {/* Impact explanation */}
+          {skillGap.impact && skillGap.impact !== 'Not available' && (
+            <div className="mb-2 p-2 bg-yellow-50 rounded-md border border-yellow-200">
+              <p className="text-sm text-yellow-800">
+                <span className="font-medium">🎯 Why it matters:</span> {skillGap.impact}
+              </p>
+            </div>
+          )}
+          
+          {/* Learning resources */}
+          {(skillGap.resource || (skillGap.resources && skillGap.resources.length > 0)) && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-500">Resources:</p>
-              {skillGap.resources.map((resource, index) => (
+              <p className="text-xs font-medium text-gray-500">Learning Resources:</p>
+              {skillGap.resource && skillGap.resource !== 'Not available' && (
+                <a
+                  href={skillGap.resource}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs text-blue-600 hover:text-blue-800 underline truncate"
+                >
+                  📚 {skillGap.resource}
+                </a>
+              )}
+              {skillGap.resources && skillGap.resources.map((resource, index) => (
                 <a
                   key={index}
                   href={resource}

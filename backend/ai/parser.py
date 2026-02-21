@@ -9,34 +9,44 @@ logger = logging.getLogger(__name__)
 class Issue(BaseModel):
     type: str
     severity: str = Field(pattern="^(low|medium|high|critical)$")
-    message: str
     file: str
-    line: int
-    suggestion: str
+    lines: str
+    snippet: str
+    problem: str
+    impact: str
+    fix: str
 
 class SecurityIssue(BaseModel):
     type: str = Field(default="security")
     severity: str = Field(pattern="^(low|medium|high|critical)$")
-    message: str
     file: str
-    line: int
+    lines: str
+    snippet: str
+    problem: str
+    impact: str
+    fix: str
     cwe: Optional[str] = None
-    suggestion: str
 
 class ArchitectureIssue(BaseModel):
     type: str = Field(default="architecture")
     severity: str = Field(pattern="^(low|medium|high|critical)$")
-    message: str
     file: str
-    line: int
+    lines: str
+    snippet: str
+    problem: str
+    impact: str
+    fix: str
     principle: Optional[str] = None
-    suggestion: str
 
 class SkillGap(BaseModel):
     category: str = Field(pattern="^(language|framework|pattern|tool)$")
     skill: str
     level: str = Field(pattern="^(beginner|intermediate|advanced)$")
+    file: str
+    lines: str
+    snippet: str
     gap: str
+    impact: str
     resource: Optional[str] = None
     priority: str = Field(pattern="^(low|medium|high)$")
 
@@ -78,6 +88,61 @@ class ReviewResult(BaseModel):
 class ResponseParser:
     def __init__(self):
         self.cache = {}
+    
+    def _add_backward_compatibility(self, issue_data: Dict, issue_type: str) -> Dict:
+        """Add backward compatibility for old field names."""
+        # Map old field names to new ones
+        field_mapping = {
+            "message": "problem",
+            "line": "lines", 
+            "suggestion": "fix"
+        }
+        
+        # Create a copy to avoid modifying original
+        compatible_data = issue_data.copy()
+        
+        # Map old fields to new fields if new fields don't exist
+        for old_field, new_field in field_mapping.items():
+            if old_field in compatible_data and new_field not in compatible_data:
+                compatible_data[new_field] = compatible_data[old_field]
+        
+        # Ensure all required fields exist with fallbacks
+        required_fields = {
+            "file": "Not available",
+            "lines": "Not available", 
+            "snippet": "Not available",
+            "problem": "Not available",
+            "impact": "Not available",
+            "fix": "Not available"
+        }
+        
+        # Add missing required fields with fallbacks
+        for field, fallback in required_fields.items():
+            if field not in compatible_data or not compatible_data[field]:
+                compatible_data[field] = fallback
+        
+        # Handle special case for line number conversion
+        if "line" in compatible_data and isinstance(compatible_data["line"], int):
+            compatible_data["lines"] = str(compatible_data["line"])
+        
+        # Add type-specific fields
+        if issue_type == "security" and "cwe" not in compatible_data:
+            compatible_data["cwe"] = None
+        elif issue_type == "architecture" and "principle" not in compatible_data:
+            compatible_data["principle"] = None
+        elif issue_type == "skills":
+            skill_fields = {
+                "category": "Not available",
+                "skill": "Not available", 
+                "level": "beginner",
+                "resource": "Not available",
+                "priority": "medium"
+            }
+            for field, fallback in skill_fields.items():
+                if field not in compatible_data or not compatible_data[field]:
+                    compatible_data[field] = fallback
+        
+        return compatible_data
     
     def extract_json_from_response(self, response: str) -> Optional[Dict]:
         """Extract JSON from LLM response with multiple fallback strategies."""
@@ -242,7 +307,9 @@ class ResponseParser:
         if "issues" in data:
             for issue_data in data["issues"]:
                 try:
-                    issue = Issue(**issue_data)
+                    # Add backward compatibility
+                    compatible_data = self._add_backward_compatibility(issue_data, "quality")
+                    issue = Issue(**compatible_data)
                     result["issues"].append(issue.model_dump())
                 except Exception as e:
                     logger.warning(f"Invalid quality issue: {str(e)}")
@@ -259,7 +326,9 @@ class ResponseParser:
         if "security" in data:
             for issue_data in data["security"]:
                 try:
-                    issue = SecurityIssue(**issue_data)
+                    # Add backward compatibility
+                    compatible_data = self._add_backward_compatibility(issue_data, "security")
+                    issue = SecurityIssue(**compatible_data)
                     result["security"].append(issue.model_dump())
                 except Exception as e:
                     logger.warning(f"Invalid security issue: {str(e)}")
@@ -276,7 +345,9 @@ class ResponseParser:
         if "architecture" in data:
             for issue_data in data["architecture"]:
                 try:
-                    issue = ArchitectureIssue(**issue_data)
+                    # Add backward compatibility
+                    compatible_data = self._add_backward_compatibility(issue_data, "architecture")
+                    issue = ArchitectureIssue(**compatible_data)
                     result["architecture"].append(issue.model_dump())
                 except Exception as e:
                     logger.warning(f"Invalid architecture issue: {str(e)}")
@@ -293,7 +364,9 @@ class ResponseParser:
         if "skills" in data:
             for skill_data in data["skills"]:
                 try:
-                    skill = SkillGap(**skill_data)
+                    # Add backward compatibility
+                    compatible_data = self._add_backward_compatibility(skill_data, "skills")
+                    skill = SkillGap(**compatible_data)
                     result["skills"].append(skill.model_dump())
                 except Exception as e:
                     logger.warning(f"Invalid skill gap: {str(e)}")
