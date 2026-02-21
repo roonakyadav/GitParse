@@ -91,8 +91,9 @@ class ReviewResult(BaseModel):
 
 class ResponseParser:
     def __init__(self):
-        self.cache = {}
-    
+        # Cache disabled - all parsing is done fresh
+        pass
+
     def _add_backward_compatibility(self, issue_data: Dict, issue_type: str) -> Dict:
         """Add backward compatibility for old field names and enforce chunk_id."""
         # Map old field names to new ones

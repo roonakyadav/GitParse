@@ -12,14 +12,11 @@ logger = logging.getLogger(__name__)
 
 class ReviewEngine:
     def __init__(self):
-        self.cache = {}
         self.max_chunks_per_request = 15
-        self.cache_ttl = 3600  # 1 hour
-    
-    def _get_cache_key(self, chunks: List[Dict], review_type: str) -> str:
-        """Generate cache key for chunks and review type."""
-        content = str([chunk.get("content", "") for chunk in chunks[:5]]) + review_type
-        return hashlib.md5(content.encode()).hexdigest()
+        # Cache disabled - all AI calls will be fresh
+        pass
+
+    # Cache methods removed - caching is disabled
     
     def _map_chunk_ids_to_actual_data(self, result: Dict[str, Any], chunk_mapping: Dict[str, Dict]) -> Dict[str, Any]:
         """Map chunk_id to actual file/lines/snippet data for all issues in the result."""
@@ -70,9 +67,7 @@ class ReviewEngine:
         
         return result
     
-    def _is_cache_valid(self, timestamp: float) -> bool:
-        """Check if cache entry is still valid."""
-        return time.time() - timestamp < self.cache_ttl
+    # Cache validation removed - caching is disabled
     
     def _select_important_chunks(self, index_data: Dict, max_chunks: int = 50) -> List[Dict]:
         """Select most important chunks for analysis with minimum guarantee."""
@@ -216,13 +211,8 @@ class ReviewEngine:
                 'content': chunk.get('content') or chunk.get('text') or chunk.get('code') or chunk.get('body') or ''
             }
         
-        # Check cache
-        cache_key = self._get_cache_key(chunks, review_type)
-        if cache_key in self.cache:
-            cached_data, timestamp = self.cache[cache_key]
-            if self._is_cache_valid(timestamp):
-                review_logger.info(f"ai.reviewer: Using cached result for {review_type} review")
-                return cached_data
+        # Cache disabled - always run fresh AI analysis
+        review_logger.info("Running fresh AI analysis (cache disabled)")
         
         try:
             # Format chunks for prompt
@@ -261,8 +251,7 @@ class ReviewEngine:
             
             review_logger.info(f"ai.reviewer: Completed {review_type} review: {result.get('score', 0)} score")
             
-            # Cache result
-            self.cache[cache_key] = (result, time.time())
+            # Cache disabled - do not store results
             return result
             
         except Exception as e:

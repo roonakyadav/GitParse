@@ -1,6 +1,19 @@
 import { RepoAnalysis, StoredRepoData } from '../types';
 import { STORAGE_KEY, STORAGE_EXPIRY_MS } from './config';
 
+// Track the current repository URL to detect when a new repo is entered
+let currentRepoUrl: string | null = null;
+
+export function setCurrentRepoUrl(url: string): void {
+  currentRepoUrl = url;
+  // Clear any existing data when setting a new repo URL
+  clearRepoData();
+}
+
+export function getCurrentRepoUrl(): string | null {
+  return currentRepoUrl;
+}
+
 export function saveRepoData(data: RepoAnalysis): void {
   try {
     if (typeof window === 'undefined') return; // SSR safety
