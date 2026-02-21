@@ -4,35 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { loadRepoData, saveRepoData } from '../../lib/storage';
 import { API_URL } from '../../lib/config';
-
-interface ProcessedData {
-  repo: string;
-  total_files: number;
-  total_chunks: number;
-  total_tokens: number;
-  max_tokens: number;
-  min_tokens: number;
-  avg_tokens: number;
-  languages: Record<string, number>;
-  file_types: Record<string, number>;
-  processing_stats: {
-    processing_time_seconds: number;
-    files_processed: number;
-    files_failed: number;
-    chunks_created: number;
-    chunks_within_limits: number;
-    chunks_too_large: number;
-    chunks_too_small: number;
-  };
-  dependencies: {
-    total_dependencies: number;
-    graph: {
-      circular_dependencies: any[];
-      top_level_files: string[];
-      leaf_files: string[];
-    };
-  };
-}
+import { ProcessedData } from '../../types';
 
 export default function ProcessPage() {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
@@ -69,6 +41,12 @@ export default function ProcessPage() {
       }
 
       const data: ProcessedData = await response.json();
+      
+      // Check if API returned success: false
+      if (data.success === false) {
+        throw new Error(data.error || 'Repository processing failed');
+      }
+      
       setProcessedData(data);
       
       // Save processed data
@@ -94,8 +72,8 @@ export default function ProcessPage() {
 
   const getTokenEfficiency = (): number => {
     if (!processedData) return 0;
-    const { chunks_within_limits, total_chunks } = processedData.processing_stats;
-    return total_chunks > 0 ? (chunks_within_limits / total_chunks) * 100 : 0;
+    const { chunks_within_limits, chunks_created } = processedData.processing_stats;
+    return chunks_created > 0 ? (chunks_within_limits / chunks_created) * 100 : 0;
   };
 
   const handleBack = () => {
@@ -105,6 +83,14 @@ export default function ProcessPage() {
   const handleNewAnalysis = () => {
     router.push('/');
   };
+
+  const handleRunAIReview = () => {
+    router.push('/review');
+  };
+
+  // Check if chunks are available for AI review
+  const hasChunks = processedData && processedData.total_chunks > 0;
+  const chunksWarning = !hasChunks ? "No chunks available - AI review may fail" : "";
 
   if (isLoading) {
     return (
@@ -179,6 +165,18 @@ export default function ProcessPage() {
             </div>
             <div className="flex space-x-4">
               <button
+                onClick={handleRunAIReview}
+                disabled={!hasChunks}
+                className={`px-4 py-2 rounded-md transition-colors ${
+                  !hasChunks 
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                }`}
+                title={chunksWarning}
+              >
+                Run AI Review
+              </button>
+              <button
                 onClick={processRepository}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
               >
@@ -202,6 +200,34 @@ export default function ProcessPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Warning when no chunks */}
+        {!hasChunks && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-8">
+            <div className="flex items-start space-x-3">
+              <div className="text-yellow-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-yellow-800 mb-2">No Chunks Available</h3>
+                <p className="text-yellow-700 mb-3">
+                  No code chunks were generated during processing. This may happen when:
+                </p>
+                <ul className="list-disc list-inside text-yellow-700 space-y-1">
+                  <li>Repository contains only binary files</li>
+                  <li>Files are too large or too small for processing</li>
+                  <li>Unsupported file types</li>
+                  <li>Parsing errors occurred</li>
+                </ul>
+                <p className="text-yellow-700 mt-3">
+                  <strong>Recommendation:</strong> Try re-processing the repository or analyze a different repository with source code files.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">

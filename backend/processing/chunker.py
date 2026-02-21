@@ -41,6 +41,22 @@ def chunk_ast(parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Validate and adjust chunks
     chunks = _validate_and_adjust_chunks(chunks)
     
+    # FINAL FALLBACK: If validation returned no chunks, we still need something
+    if not chunks:
+        file_path = parsed.get('file_path', 'unknown')
+        logger.warning(f"chunk_ast produced no chunks for {file_path}, generating fallback chunks")
+        # try to generate a fallback list based on the parsed structure
+        chunks = _create_fallback_chunks_from_parsed(parsed)
+        if not chunks:
+            logger.error(f"fallback generation failed for {file_path}, creating emergency chunk")
+            chunks = [_create_emergency_chunk(file_path)]
+    
+    # ULTIMATE SAFETY: Ensure at least one chunk if file exists
+    if not chunks and parsed.get('file_path'):
+        file_path = parsed.get('file_path', 'unknown')
+        logger.error(f"Ultimate fallback triggered for {file_path}, forcing chunk creation")
+        chunks = [_create_emergency_chunk(file_path)]
+
     return chunks
 
 
@@ -182,12 +198,12 @@ def _create_header_chunk(parsed: Dict[str, Any], language: str) -> Optional[Dict
         for imp in imports:
             if imp['type'] == 'import':
                 line = f"import {imp['module']}"
-                if imp['alias']:
+                if imp.get('alias'):  # Fix: Use .get() to handle missing alias
                     line += f" as {imp['alias']}"
                 import_lines.append(line)
             else:  # from_import
                 line = f"from {imp['module']} import {imp['name']}"
-                if imp['alias']:
+                if imp.get('alias'):  # Fix: Use .get() to handle missing alias
                     line += f" as {imp['alias']}"
                 import_lines.append(line)
         content = "\n".join(import_lines)
@@ -419,6 +435,7 @@ def _create_struct_chunk(struct_info: Dict[str, Any], file_path: str) -> Dict[st
 def _validate_and_adjust_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Validate chunk sizes and apply adaptive merging."""
     if not chunks:
+        # nothing to validate, return immediately
         return chunks
     
     # First pass: Calculate token counts for all chunks
@@ -441,8 +458,18 @@ def _validate_and_adjust_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, 
             split_chunks = _split_large_chunk(chunk)
             final_chunks.extend(split_chunks)
     
+    # CRITICAL: Ensure we always have at least one chunk
+    if not final_chunks:
+        logger.error("No chunks after validation, creating emergency chunk")
+        final_chunks = [_create_emergency_chunk()]
+    
     # Final validation pass
     final_chunks = _final_validation(final_chunks)
+    
+    # ULTIMATE FALLBACK: If still no chunks, create a minimal one
+    if not final_chunks:
+        logger.error("All chunks filtered out, creating ultimate fallback chunk")
+        final_chunks = [_create_emergency_chunk()]
     
     return final_chunks
 
@@ -589,3 +616,131 @@ def _split_large_chunk(chunk: Dict[str, Any]) -> List[Dict[str, Any]]:
         split_chunks.append(split_chunk)
     
     return split_chunks
+
+
+def _create_fallback_chunks_from_parsed(parsed: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Generate fallback chunks by synthesizing content from parsed data.
+
+    This mirrors the behavior of indexer._create_fallback_chunks but works
+    entirely within the chunker so that the chunker itself never returns
+    an empty list. The chunks are roughly ~500 tokens (by line count) and
+    provide a minimal representation of the file for downstream phases.
+    """
+    chunks: List[Dict[str, Any]] = []
+    file_path = parsed.get('file_path', '')
+    language = parsed.get('language', 'text')
+
+    content_parts: List[str] = []
+    # Imports
+    for imp in parsed.get('imports', []):
+        if language == 'python':
+            if imp.get('type') == 'import':
+                line = f"import {imp.get('module','')}"
+                if imp.get('alias'):
+                    line += f" as {imp.get('alias')}"
+                content_parts.append(line)
+            elif imp.get('type') == 'from_import':
+                line = f"from {imp.get('module','')} import {imp.get('name','')}"
+                if imp.get('alias'):
+                    line += f" as {imp.get('alias')}"
+                content_parts.append(line)
+        else:
+            content_parts.append(f"// Import: {imp.get('module','')}")
+
+    # Functions
+    for func in parsed.get('functions', []):
+        if language == 'python':
+            args = ', '.join(func.get('args', []))
+            content_parts.append(f"def {func.get('name','unknown')}({args}):\n    pass")
+        else:
+            args = ', '.join(func.get('args', []))
+            content_parts.append(f"function {func.get('name','unknown')}({args}) {{\n    // TODO: implement\n}}")
+
+    # Classes
+    for cls in parsed.get('classes', []):
+        if language == 'python':
+            content_parts.append(f"class {cls.get('name','Unknown')}:\n    pass")
+        else:
+            content_parts.append(f"class {cls.get('name','Unknown')} {{\n    // TODO: implement\n}}")
+
+    if not content_parts:
+        content_parts = [
+            f"// File: {file_path}",
+            f"// Language: {language}",
+            "// Fallback chunk created when normal chunking failed",
+        ]
+
+    full_content = '\n\n'.join(content_parts)
+    lines = full_content.split('\n')
+    target_lines = 50  # roughly 500 tokens
+    chunk_id = 1
+
+    for i in range(0, len(lines), target_lines):
+        chunk_lines = lines[i:i + target_lines]
+        chunk_content = '\n'.join(chunk_lines)
+        chunk = {
+            'id': f"{file_path}_fallback_{chunk_id}",
+            'type': 'fallback',
+            'file_path': file_path,
+            'language': language,
+            'content': chunk_content,
+            'metadata': {
+                'file_path': file_path,
+                'language': language,
+                'chunk_type': 'fallback',
+                'chunk_number': chunk_id,
+                'created_by': 'chunker_fallback'
+            }
+        }
+        chunks.append(chunk)
+        chunk_id += 1
+
+    # CRITICAL: Always ensure at least one chunk
+    if not chunks:
+        logger.error(f"Even fallback chunking failed for {file_path}, creating emergency chunk")
+        chunks = [_create_emergency_chunk(file_path)]
+
+    if chunks:
+        logger.info(f"chunker: created {len(chunks)} fallback chunks for {file_path}")
+    return chunks
+
+
+def _create_emergency_chunk(file_path: str = "emergency") -> Dict[str, Any]:
+    """Create an emergency chunk when all else fails."""
+    content = """// Emergency Chunk - Created When Normal Chunking Failed
+// This is a safety mechanism to ensure analysis can proceed
+
+Repository Analysis Notes:
+- Normal chunking process failed completely
+- This emergency chunk ensures the pipeline doesn't break
+- Consider manual review of the repository
+
+Possible Causes:
+1. Repository contains only binary files
+2. All files are too large/small for processing
+3. Parsing errors for all file types
+4. Unsupported file formats
+
+Recommendations:
+1. Check repository structure manually
+2. Verify file types are supported
+3. Review file size limitations
+4. Consider preprocessing the repository
+
+// This chunk allows the analysis to continue with minimal information
+// but manual review is strongly recommended for accurate results."""
+
+    return {
+        'id': f"{file_path}_emergency_chunk",
+        'type': 'emergency',
+        'file_path': file_path,
+        'language': 'text',
+        'content': content,
+        'metadata': {
+            'chunk_type': 'emergency',
+            'created_by': 'emergency_chunker',
+            'reason': 'all_chunking_failed',
+            'file_path': file_path
+        },
+        'token_count': 150  # Estimated
+    }

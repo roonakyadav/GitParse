@@ -46,8 +46,10 @@ def build_dependency_map(files: List[Dict[str, Any]]) -> Dict[str, Any]:
         # Extract dependencies from imports
         dependencies = _extract_dependencies(parsed_data, language, file_path)
         
-        # Build maps
+        # Build maps, ignore empty/None dependencies
         for dep in dependencies:
+            if not dep:
+                continue
             dependency_map[file_path].add(dep)
             reverse_dependency_map[dep].add(file_path)
             language_dependencies[language].add(dep)
