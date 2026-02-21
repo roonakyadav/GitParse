@@ -275,6 +275,46 @@ def get_prompt_template(review_type: str) -> str:
     # Only format system prompt for now, chunks will be formatted separately
     return templates[review_type].format(system_prompt=SYSTEM_PROMPT)
 
+RESUME_SUMMARY_PROMPT = """{system_prompt}
+
+Generate a professional recruiter-style summary of this project based on the technical analysis.
+
+Overall Score: {overall_score}
+Score Breakdown: {score_breakdown}
+
+Issues Found:
+{issues_summary}
+
+Skills Analysis:
+{skills_summary}
+
+Architecture Feedback:
+{architecture_summary}
+
+You MUST return ONLY this exact JSON structure:
+{{
+  "project_resume": "Professional summary text here"
+}}
+
+CRITICAL REQUIREMENTS:
+- Write in professional recruiter tone
+- No emojis
+- No markdown formatting
+- 120-180 words maximum
+- Positive but honest assessment
+- Highlight strengths prominently
+- Mention growth areas diplomatically
+- Avoid harsh criticism or negative language
+- Focus on technical capabilities demonstrated
+- Use industry-standard terminology
+- Make it suitable for resume/CV inclusion
+- Write in past tense as if describing completed work
+
+STYLE EXAMPLE:
+"This project demonstrates strong backend development practices with a focus on scalable APIs and maintainable code structure. The repository reflects solid understanding of security principles and modular design, while showing opportunities for further growth in type safety and testing practices."
+
+Return ONLY JSON. No other text."""
+
 def format_chunks_for_prompt(chunks: list, max_chunks: int = 15) -> str:
     """Format code chunks for prompt input with clear delimiters."""
     import logging

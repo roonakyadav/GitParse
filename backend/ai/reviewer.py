@@ -436,6 +436,43 @@ class ReviewEngine:
                 heuristic_skills = self._heuristic_analysis(important_chunks, "skills")
                 final_result.skills.extend([SkillGap(**skill) for skill in heuristic_skills.get("skills", [])])
             
+            # Calculate individual scores for breakdown
+            code_quality_score = self._calculate_component_score(final_result.issues, "quality")
+            security_score = self._calculate_component_score(final_result.security, "security")
+            architecture_score = self._calculate_component_score(final_result.architecture, "architecture")
+            skills_score = self._calculate_component_score(final_result.skills, "skills")
+            
+            # Calculate overall score as weighted average
+            overall_score = self._calculate_overall_score(
+                code_quality_score, 
+                security_score, 
+                architecture_score, 
+                skills_score
+            )
+            
+            # Create score breakdown
+            score_breakdown = {
+                "code_quality": code_quality_score,
+                "security": security_score,
+                "architecture": architecture_score,
+                "skills": skills_score
+            }
+            
+            # Log the breakdown for transparency
+            review_logger.info(f"Score breakdown: {score_breakdown}")
+            review_logger.info(f"Overall score: {overall_score}")
+            
+            # Generate project resume summary
+            project_resume = await self._generate_project_resume(
+                overall_score,
+                score_breakdown,
+                final_result.issues,
+                final_result.security,
+                final_result.architecture,
+                final_result.skills
+            )
+            review_logger.info("Generated project resume summary")
+            
             # Convert to dict for JSON response
             response_data = {
                 "success": True,
@@ -443,7 +480,9 @@ class ReviewEngine:
                 "security": [issue.dict() for issue in final_result.security],
                 "architecture": [issue.dict() for issue in final_result.architecture],
                 "skills": [skill.dict() for skill in final_result.skills],
-                "score": final_result.score if final_result.score is not None else 50,
+                "score": overall_score,
+                "score_breakdown": score_breakdown,
+                "project_resume": project_resume,
                 "chunks_analyzed": len(important_chunks),
                 "total_chunks": len(index_data.get("chunks", [])),
                 "review_types": review_types,
@@ -779,6 +818,164 @@ class ReviewEngine:
         
         return result
     
+    def _calculate_component_score(self, items: List, component_type: str) -> float:
+        """Calculate individual component score (0-100) based on issues found."""
+        if not items:
+            return 90.0  # High score when no issues found
+        
+        # Count issues by severity
+        high_count = sum(1 for item in items if getattr(item, "severity", getattr(item, "priority", "low")) == "high")
+        medium_count = sum(1 for item in items if getattr(item, "severity", getattr(item, "priority", "low")) == "medium")
+        low_count = sum(1 for item in items if getattr(item, "severity", getattr(item, "priority", "low")) == "low")
+        
+        # Calculate base score (start high, deduct for issues)
+        base_score = 95.0
+        score = base_score - (high_count * 15) - (medium_count * 8) - (low_count * 3)
+        
+        # Ensure score is between 0 and 100
+        return max(0.0, min(100.0, score))
+    
+    def _calculate_overall_score(self, code_quality: float, security: float, architecture: float, skills: float) -> float:
+        """Calculate overall score as weighted average of component scores."""
+        # Weighted average: quality(30%), security(25%), architecture(25%), skills(20%)
+        overall = (code_quality * 0.30 + 
+                  security * 0.25 + 
+                  architecture * 0.25 + 
+                  skills * 0.20)
+        return round(overall, 1)
+    
+    async def _generate_project_resume(self, overall_score: float, score_breakdown: dict, issues: list, security: list, architecture: list, skills: list) -> str:
+        """Generate professional recruiter-style project resume summary."""
+        from .client import get_groq_client
+        from .prompts import RESUME_SUMMARY_PROMPT, SYSTEM_PROMPT
+        
+        review_logger = logging.getLogger("ai.review")
+        review_logger.info("Generating project resume summary")
+        
+        try:
+            # Create summaries of each analysis area
+            issues_summary = self._summarize_issues(issues)
+            skills_summary = self._summarize_skills(skills)
+            architecture_summary = self._summarize_architecture(architecture)
+            
+            # Format the prompt with analysis data
+            prompt = RESUME_SUMMARY_PROMPT.format(
+                system_prompt=SYSTEM_PROMPT,
+                overall_score=overall_score,
+                score_breakdown=score_breakdown,
+                issues_summary=issues_summary,
+                skills_summary=skills_summary,
+                architecture_summary=architecture_summary
+            )
+            
+            # Call Groq API for resume summary
+            client = get_groq_client()
+            response = await client.call_groq(prompt)
+            
+            # Parse the response to extract project resume
+            import json
+            try:
+                parsed_response = json.loads(response)
+                project_resume = parsed_response.get("project_resume", "")
+                if project_resume and len(project_resume.strip()) > 0:
+                    # Validate length (120-180 words)
+                    word_count = len(project_resume.split())
+                    if word_count < 120:
+                        review_logger.warning(f"Project resume too short: {word_count} words")
+                    elif word_count > 180:
+                        review_logger.warning(f"Project resume too long: {word_count} words")
+                    
+                    review_logger.info(f"Successfully generated project resume: {word_count} words")
+                    return project_resume.strip()
+            except json.JSONDecodeError:
+                review_logger.error("Failed to parse resume summary JSON response")
+                pass
+            
+        except Exception as e:
+            review_logger.error(f"Failed to generate project resume: {str(e)}", exc_info=True)
+            pass
+        
+        # Fallback: generate a reasonable summary programmatically
+        return self._generate_fallback_resume(overall_score, score_breakdown)
+    
+    def _summarize_issues(self, issues: list) -> str:
+        """Create a summary of code quality issues."""
+        if not issues:
+            return "No significant code quality issues identified. Demonstrates clean coding practices."
+        
+        high_count = sum(1 for issue in issues if getattr(issue, "severity", "low") == "high")
+        medium_count = sum(1 for issue in issues if getattr(issue, "severity", "low") == "medium")
+        low_count = sum(1 for issue in issues if getattr(issue, "severity", "low") == "low")
+        
+        summary = f"Identified {len(issues)} code quality items: "
+        if high_count > 0:
+            summary += f"{high_count} high priority, "
+        if medium_count > 0:
+            summary += f"{medium_count} medium priority, "
+        if low_count > 0:
+            summary += f"{low_count} low priority issues. "
+        
+        summary += "Focus areas include maintainability and code standards."
+        return summary
+    
+    def _summarize_skills(self, skills: list) -> str:
+        """Create a summary of skills analysis."""
+        if not skills:
+            return "Demonstrates solid technical foundation with established practices."
+        
+        high_priority = sum(1 for skill in skills if getattr(skill, "priority", "low") == "high")
+        categories = list(set(getattr(skill, "category", "general") for skill in skills))
+        
+        summary = f"Analysis identified {len(skills)} skill development opportunities "
+        if high_priority > 0:
+            summary += f"({high_priority} high priority). "
+        else:
+            summary += ". "
+        
+        if categories:
+            summary += f"Key areas: {', '.join(categories[:3])}. "
+        
+        summary += "Shows commitment to continuous learning and improvement."
+        return summary
+    
+    def _summarize_architecture(self, architecture: list) -> str:
+        """Create a summary of architecture feedback."""
+        if not architecture:
+            return "Well-structured architecture with good design principles demonstrated."
+        
+        high_count = sum(1 for item in architecture if getattr(item, "severity", "low") == "high")
+        principles = list(set(getattr(item, "principle", "general") for item in architecture))
+        
+        summary = f"Architecture review identified {len(architecture)} structural considerations "
+        if high_count > 0:
+            summary += f"({high_count} high priority). "
+        else:
+            summary += ". "
+        
+        if principles:
+            summary += f"Key principles: {', '.join(principles[:2])}. "
+        
+        summary += "Reflects thoughtful approach to system design."
+        return summary
+    
+    def _generate_fallback_resume(self, overall_score: float, score_breakdown: dict) -> str:
+        """Generate fallback resume summary when AI fails."""
+        review_logger = logging.getLogger("ai.review")
+        review_logger.info("Generating fallback project resume summary")
+        
+        # Create a professional summary based on scores
+        quality_desc = "strong" if score_breakdown["code_quality"] >= 80 else "solid" if score_breakdown["code_quality"] >= 60 else "developing"
+        security_desc = "robust" if score_breakdown["security"] >= 80 else "adequate" if score_breakdown["security"] >= 60 else "basic"
+        arch_desc = "well-structured" if score_breakdown["architecture"] >= 80 else "organized" if score_breakdown["architecture"] >= 60 else "functional"
+        skills_desc = "advanced" if score_breakdown["skills"] >= 80 else "competent" if score_breakdown["skills"] >= 60 else "emerging"
+        
+        summary = f"This project demonstrates {quality_desc} development practices with {security_desc} security implementation. "
+        summary += f"The {arch_desc} architecture reflects {skills_desc} technical capabilities. "
+        summary += "Shows attention to code quality, security considerations, and maintainable design patterns. "
+        summary += "Well-suited for production environments with opportunities for further enhancement."
+        
+        return summary.strip()
+    
     def _create_fallback_analysis(self, index_data: Dict, chunks: List[Dict]) -> Dict[str, Any]:
         """Create fallback analysis when AI fails completely."""
         review_logger = logging.getLogger("ai.review")
@@ -828,14 +1025,44 @@ class ReviewEngine:
                 "priority": "medium"
             }]
         
+        # Calculate fallback scores
+        code_quality_score = self._calculate_component_score(fallback_result.get("issues", []), "quality")
+        security_score = self._calculate_component_score(fallback_result.get("security", []), "security")
+        architecture_score = self._calculate_component_score(fallback_result.get("architecture", []), "architecture")
+        skills_score = self._calculate_component_score(fallback_result.get("skills", []), "skills")
+        
+        # Calculate overall score
+        overall_score = self._calculate_overall_score(
+            code_quality_score, 
+            security_score, 
+            architecture_score, 
+            skills_score
+        )
+        
+        # Create score breakdown
+        score_breakdown = {
+            "code_quality": code_quality_score,
+            "security": security_score,
+            "architecture": architecture_score,
+            "skills": skills_score
+        }
+        
+        # Generate project resume for fallback
+        project_resume = self._generate_fallback_resume(overall_score, score_breakdown)
+        
         # Add metadata about fallback
         fallback_result["success"] = True
         fallback_result["fallback_analysis"] = True
         fallback_result["chunks_analyzed"] = len(chunks)
         fallback_result["total_chunks"] = len(index_data.get("chunks", []))
         fallback_result["failed_reviews"] = 4  # All review types failed
+        fallback_result["score"] = overall_score
+        fallback_result["score_breakdown"] = score_breakdown
+        fallback_result["project_resume"] = project_resume
         
-        review_logger.info(f"Fallback analysis created with score {fallback_result.get('score', 50)}")
+        review_logger.info(f"Fallback analysis created with score {overall_score}")
+        review_logger.info(f"Score breakdown: {score_breakdown}")
+        review_logger.info("Generated fallback project resume summary")
         return fallback_result
 
 # Global review engine instance

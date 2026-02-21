@@ -86,6 +86,13 @@ export interface SkillGap {
   description?: string; // Backward compatibility
 }
 
+export interface ScoreBreakdown {
+  code_quality: number;
+  security: number;
+  architecture: number;
+  skills: number;
+}
+
 export interface AIReviewResponse {
   success: boolean;
   repo?: string;
@@ -94,6 +101,8 @@ export interface AIReviewResponse {
   security: ReviewItem[];  // Changed from security_warnings to match backend
   architecture: ReviewItem[];  // Changed from architecture_feedback to match backend
   skills: SkillGap[];  // Changed from skill_gaps to match backend
+  score_breakdown?: ScoreBreakdown;
+  project_resume?: string;
   summary?: string;
   error?: string;
   chunks_analyzed?: number;

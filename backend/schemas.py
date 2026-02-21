@@ -9,6 +9,17 @@ class RepoFile(BaseModel):
     download_url: str
 
 
+class ScoreBreakdown(BaseModel):
+    code_quality: float
+    security: float
+    architecture: float
+    skills: float
+    
+    class Config:
+        # Allow additional fields to be set dynamically
+        extra = "allow"
+
+
 class RepoAnalysis(BaseModel):
     repo: str
     files: List[RepoFile]
@@ -30,3 +41,11 @@ class AnalyzeRequest(BaseModel):
 
 class ApiError(BaseModel):
     error: str
+
+
+class ProjectResume(BaseModel):
+    project_resume: str
+    
+    class Config:
+        # Allow additional fields to be set dynamically
+        extra = "allow"

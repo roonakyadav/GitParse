@@ -11,6 +11,8 @@ import {
   SkillGapCard, 
   SeverityBadge 
 } from '../../components/ReviewSections';
+import { ScoreBreakdown } from '../../components/ScoreBreakdown';
+import { ProjectResumeSummary } from '../../components/ProjectResumeSummary';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
 export default function ReviewPageWrapper() {
@@ -299,6 +301,16 @@ function ReviewPage() {
             </div>
           </div>
         </div>
+
+        {/* Score Breakdown */}
+        {reviewData.score_breakdown && (
+          <ScoreBreakdown breakdown={reviewData.score_breakdown} />
+        )}
+
+        {/* Project Resume Summary */}
+        {reviewData.project_resume && (
+          <ProjectResumeSummary projectResume={reviewData.project_resume} />
+        )}
 
         {/* Code Quality Issues */}
         <ReviewSection
