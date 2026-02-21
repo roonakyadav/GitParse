@@ -1,12 +1,13 @@
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from schemas import AnalyzeRequest, RepoAnalysis, ApiError, RepoFile
+from schemas import AnalyzeRequest, RepoAnalysis, ApiError, RepoFile, ProgressStatus
 from github import parse_repo_url, process_repo_files, GitHubRateLimitExceeded, store_repo_snapshot, generate_demo_analysis
 from processing.indexer import create_repository_index
 from ai import review_engine
+from progress import progress_tracker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,13 +42,17 @@ async def log_requests(request: Request, call_next):
     return response
 
 
-async def analyze_with_fallback(owner: str, repo: str) -> RepoAnalysis:
+async def analyze_with_fallback(owner: str, repo: str, request_id: Optional[str] = None) -> RepoAnalysis:
     """Unified safe analysis mode that guarantees consistent results."""
     logger.info(f"[SAFE_MODE] Activating safe analysis for {owner}/{repo}")
     
+    # Create progress tracker if not provided
+    if not request_id:
+        request_id = progress_tracker.create_progress()
+    
     try:
         # Try real GitHub analysis first
-        files, analysis_mode = await process_repo_files(owner, repo)
+        files, analysis_mode = await process_repo_files(owner, repo, request_id)
         
         # If we got files, return real analysis
         if files and len(files) > 0:
@@ -96,11 +101,18 @@ async def analyze_repository(request: AnalyzeRequest):
     owner, repo = parsed
     logger.info(f"Parsed repository: owner={owner}, repo={repo}")
     
+    # Create progress tracker for this request
+    request_id = progress_tracker.create_progress()
+    logger.info(f"Created progress tracker: {request_id}")
+    
     # Use unified safe analysis
     try:
-        result = await analyze_with_fallback(owner, repo)
+        result = await analyze_with_fallback(owner, repo, request_id)
         logger.info(f"Analysis completed: {len(result.files)} files found")
-        return result
+        # Add request_id to response
+        result_dict = result.dict()
+        result_dict["request_id"] = request_id
+        return result_dict
     except Exception as e:
         logger.error(f"Analysis failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -111,13 +123,16 @@ async def process_repository(request: dict):
     """Process repository with Phase 2 analysis."""
     logger.info(f"Processing repository with Phase 2 analysis")
     
+    # Extract request_id if provided
+    request_id = request.get("request_id")
+    
     try:
         # Validate input - should be Phase 1 output
         if not isinstance(request, dict) or 'files' not in request:
             raise HTTPException(status_code=400, detail="Invalid input format. Expected Phase 1 output.")
         
         # Create repository index
-        index = create_repository_index(request)
+        index = create_repository_index(request, request_id)
         
         # CRITICAL: Check if chunks were created
         chunks = index.get('chunks', [])
@@ -196,8 +211,11 @@ async def review_repository(request: dict):
         
         review_logger.info(f"Validated {len(valid_chunks)} chunks out of {len(chunks)} total")
         
+        # Extract request_id if provided
+        request_id = request.get("request_id")
+        
         # Run AI review analysis
-        review_result = await review_engine.analyze_repo(request)
+        review_result = await review_engine.analyze_repo(request, request_id)
         
         # Ensure proper response structure
         if not isinstance(review_result, dict):
@@ -257,6 +275,17 @@ async def root():
         "version": "3.0.0",
         "phase": "Phase 3 - AI Review Engine"
     }
+
+
+@app.get("/api/progress/{request_id}")
+async def get_progress(request_id: str):
+    """Get progress status for a specific request."""
+    progress = progress_tracker.get_progress(request_id)
+    
+    if not progress:
+        raise HTTPException(status_code=404, detail="Progress not found")
+    
+    return ProgressStatus(**progress)
 
 
 @app.get("/health")

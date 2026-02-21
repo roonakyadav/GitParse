@@ -18,16 +18,24 @@ from .dependency import build_dependency_map
 logger = logging.getLogger(__name__)
 
 
-def create_repository_index(repo_analysis: Dict[str, Any]) -> Dict[str, Any]:
+def create_repository_index(repo_analysis: Dict[str, Any], request_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a comprehensive index from repository analysis.
     
     Args:
         repo_analysis: Phase 1 repository analysis output
+        request_id: Optional request ID for progress tracking
         
     Returns:
         Comprehensive repository index with chunks, dependencies, and metadata
     """
+    from progress import progress_tracker
+    
+    # Update progress: parsing started
+    if request_id:
+        progress_tracker.update_progress(request_id, "parsing", "running")
+        logger.info(f"Stage started: parsing for request {request_id}")
+    
     logger.info(f"Creating repository index for {repo_analysis.get('repo', 'unknown')}")
     
     start_time = datetime.now()
@@ -66,8 +74,18 @@ def create_repository_index(repo_analysis: Dict[str, Any]) -> Dict[str, Any]:
             if not parsed:
                 continue
             
+            # Update progress: chunking started
+            if request_id:
+                progress_tracker.update_progress(request_id, "chunking", "running")
+                logger.info(f"Stage started: chunking for request {request_id}")
+            
             # Create chunks
             chunks = chunk_ast(parsed)
+            
+            # Update progress: chunking done
+            if request_id:
+                progress_tracker.update_progress(request_id, "chunking", "done")
+                logger.info(f"Stage done: chunking for request {request_id}")
             
             # Fallback: if no chunks created, create raw text chunks
             if not chunks:
@@ -211,6 +229,11 @@ def create_repository_index(repo_analysis: Dict[str, Any]) -> Dict[str, Any]:
     # Final validation
     if index['total_chunks'] == 0:
         raise ValueError("Failed to create any chunks during processing. Cannot proceed with analysis.")
+    
+    # Update progress: parsing done
+    if request_id:
+        progress_tracker.update_progress(request_id, "parsing", "done")
+        logger.info(f"Stage done: parsing for request {request_id}")
     
     return index
 

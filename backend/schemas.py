@@ -49,3 +49,17 @@ class ProjectResume(BaseModel):
     class Config:
         # Allow additional fields to be set dynamically
         extra = "allow"
+
+
+class ProgressStatus(BaseModel):
+    request_id: str
+    fetching: str  # pending|running|done|error
+    parsing: str   # pending|running|done|error
+    chunking: str  # pending|running|done|error
+    review: str    # pending|running|done|error
+    error: Optional[str] = None
+    completed: bool = False
+    
+    class Config:
+        # Allow additional fields to be set dynamically
+        extra = "allow"

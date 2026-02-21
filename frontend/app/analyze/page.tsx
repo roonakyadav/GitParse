@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { RepoAnalysis, RepoFile } from '../../types';
 import { saveRepoData, loadRepoData, getCurrentRepoUrl, clearRepoData } from '../../lib/storage';
 import { API_URL } from '../../lib/config';
+import { ProgressTracker } from '../../components/ProgressTracker';
 
 export default function AnalyzePage() {
   const [repoData, setRepoData] = useState<RepoAnalysis | null>(null);
@@ -309,6 +310,22 @@ export default function AnalyzePage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Progress Tracker */}
+      {repoData.request_id && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <ProgressTracker 
+            requestId={repoData.request_id}
+            apiUrl={API_URL}
+            onCompleted={() => {
+              // Auto-redirect to process page when completed
+              setTimeout(() => {
+                router.push('/process');
+              }, 2000);
+            }}
+          />
         </div>
       )}
 

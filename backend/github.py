@@ -642,10 +642,22 @@ async def fetch_important_files_individually(client, headers, owner: str, repo: 
     return important_items
 
 
-async def process_repo_files(owner: str, repo: str) -> tuple[List[RepoFile], str]:
+async def process_repo_files(owner: str, repo: str, request_id: Optional[str] = None) -> tuple[List[RepoFile], str]:
     """Process repository files and return filtered list with analysis mode."""
+    from progress import progress_tracker
+    
+    # Update progress: fetching started
+    if request_id:
+        progress_tracker.update_progress(request_id, "fetching", "running")
+        logger.info(f"Stage started: fetching for request {request_id}")
+    
     logger.info(f"Processing files for {owner}/{repo}")
     tree = await fetch_repo_tree(owner, repo)
+    
+    # Update progress: fetching done
+    if request_id:
+        progress_tracker.update_progress(request_id, "fetching", "done")
+        logger.info(f"Stage done: fetching for request {request_id}")
     files = []
     ignored_count = 0
     

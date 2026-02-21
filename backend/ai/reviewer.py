@@ -294,8 +294,15 @@ class ReviewEngine:
                 **{review_type: placeholder}
             }
     
-    async def analyze_repo(self, index_data: Dict) -> Dict[str, Any]:
+    async def analyze_repo(self, index_data: Dict, request_id: Optional[str] = None) -> Dict[str, Any]:
         """Analyze repository and return comprehensive review."""
+        from progress import progress_tracker
+        
+        # Update progress: review started
+        if request_id:
+            progress_tracker.update_progress(request_id, "review", "running")
+            review_logger.info(f"Stage started: review for request {request_id}")
+        
         review_logger = logging.getLogger("ai.review")
         review_logger.info("Starting Phase 3 AI Review Engine analysis")
         
@@ -501,10 +508,23 @@ class ReviewEngine:
                 if field not in response_data or not isinstance(response_data[field], list):
                     response_data[field] = []
             
+            # Update progress: review done
+            if request_id:
+                progress_tracker.update_progress(request_id, "review", "done")
+                review_logger.info(f"Stage done: review for request {request_id}")
+                # Mark entire progress as completed
+                progress_tracker.complete_progress(request_id)
+                review_logger.info(f"Completed progress tracking for request {request_id}")
+            
             review_logger.info(f"Phase 3 analysis completed: score {final_result.score}, {error_count} reviews failed")
             return response_data
             
         except Exception as e:
+            # Update progress: review error
+            if request_id:
+                progress_tracker.update_progress(request_id, "review", "error", str(e))
+                review_logger.error(f"Stage error: review for request {request_id}: {str(e)}")
+            
             review_logger.error(f"Repository analysis failed: {str(e)}", exc_info=True)
             return {
                 "success": False,

@@ -15,6 +15,7 @@ export interface RepoAnalysis {
   reason?: string;
   retry_after?: string;
   safe_mode?: boolean;
+  request_id?: string;
 }
 
 export interface ProcessedData {
@@ -46,6 +47,7 @@ export interface ProcessedData {
       leaf_files: string[];
     };
   };
+  request_id?: string;
 }
 
 export interface ApiError {
@@ -109,6 +111,7 @@ export interface AIReviewResponse {
   total_chunks?: number;
   failed_reviews?: number;
   fallback_analysis?: boolean;
+  request_id?: string;
 }
 
 // Keep backward compatibility aliases
@@ -130,4 +133,14 @@ export interface AIReviewResponseLegacy {
 export interface StoredReviewData {
   data: AIReviewResponse;
   timestamp: number;
+}
+
+export interface ProgressStatus {
+  request_id: string;
+  fetching: string;  // pending|running|done|error
+  parsing: string;   // pending|running|done|error
+  chunking: string;  // pending|running|done|error
+  review: string;    // pending|running|done|error
+  error?: string;
+  completed: boolean;
 }

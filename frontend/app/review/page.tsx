@@ -14,6 +14,7 @@ import {
 import { ScoreBreakdown } from '../../components/ScoreBreakdown';
 import { ProjectResumeSummary } from '../../components/ProjectResumeSummary';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { ProgressTracker } from '../../components/ProgressTracker';
 
 export default function ReviewPageWrapper() {
   return (
@@ -280,6 +281,16 @@ function ReviewPage() {
           </div>
         </div>
       </div>
+
+      {/* Progress Tracker */}
+      {reviewData.request_id && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <ProgressTracker 
+            requestId={reviewData.request_id}
+            apiUrl={API_URL}
+          />
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Overall Score Card */}

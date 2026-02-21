@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { loadRepoData, saveRepoData, clearRepoData } from '../../lib/storage';
 import { API_URL } from '../../lib/config';
 import { ProcessedData } from '../../types';
+import { ProgressTracker } from '../../components/ProgressTracker';
 
 export default function ProcessPage() {
   const [processedData, setProcessedData] = useState<ProcessedData | null>(null);
@@ -197,6 +198,21 @@ export default function ProcessPage() {
     <div className="min-h-screen bg-[#0f0f0f]">
       <div className="bg-[#1a1a1a] shadow-sm border-b border-[#2a2a2a]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Progress Tracker */}
+          {processedData.request_id && (
+            <div className="py-4">
+              <ProgressTracker 
+                requestId={processedData.request_id}
+                apiUrl={API_URL}
+                onCompleted={() => {
+                  // Auto-redirect to review page when completed
+                  setTimeout(() => {
+                    router.push('/review');
+                  }, 2000);
+                }}
+              />
+            </div>
+          )}
           <div className="flex justify-between items-center py-4">
             <div>
               <h1 className="text-2xl font-bold text-white">Repository Processing</h1>
