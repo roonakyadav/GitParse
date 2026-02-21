@@ -1,5 +1,8 @@
 import os
 import logging
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Dict, Any
 from dotenv import load_dotenv
 
 # Configure logging
@@ -21,6 +24,10 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-8b-8192")
 GITHUB_API_BASE = "https://api.github.com"
 MAX_FILE_SIZE = 500 * 1024  # 500KB
 REQUEST_TIMEOUT = 30  # seconds
+
+# Rate limiting and caching configuration
+CACHE_DURATION = 15 * 60  # 15 minutes in seconds
+LIGHT_ANALYSIS_MODE = True  # Enable light analysis mode when rate limited
 
 def validate_config():
     """Validate configuration at startup."""

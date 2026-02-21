@@ -12,6 +12,15 @@ class RepoFile(BaseModel):
 class RepoAnalysis(BaseModel):
     repo: str
     files: List[RepoFile]
+    light_mode: Optional[bool] = False
+    analysis_mode: Optional[str] = "full"
+    limited: Optional[bool] = False
+    reason: Optional[str] = None
+    retry_after: Optional[str] = None
+    
+    class Config:
+        # Allow additional fields to be set dynamically
+        extra = "allow"
 
 
 class AnalyzeRequest(BaseModel):

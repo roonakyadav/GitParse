@@ -194,6 +194,103 @@ export default function AnalyzePage() {
         </div>
       </div>
 
+      {/* Analysis mode warning */}
+      {repoData.limited && repoData.reason === 'github_rate_limit' ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-rose-900/20 border border-rose-800/50 rounded-xl p-4">
+            <div className="flex items-start space-x-3">
+              <div className="text-rose-500 flex-shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-rose-400">Limited Analysis (GitHub API Rate Limit)</h3>
+                <p className="text-sm text-rose-300 mt-1">
+                  Limited analysis due to GitHub API rate limits. Showing cached/partial data.
+                </p>
+                {repoData.retry_after && (
+                  <p className="text-sm text-rose-300 mt-1">
+                    Rate limit resets at: {new Date(repoData.retry_after).toLocaleString()}
+                  </p>
+                )}
+                <p className="text-xs text-rose-400 mt-1">
+                  Analysis mode: {repoData.analysis_mode || 'fallback'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          {(repoData.analysis_mode === 'cached' || (repoData.limited && repoData.reason === 'github_rate_limit' && repoData.files && repoData.files.length > 0)) ? (
+            <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-amber-500 flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-amber-400">Analysis Mode: Cached</h3>
+                  <p className="text-sm text-amber-300 mt-1">
+                    Showing cached analysis due to GitHub API rate limits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : repoData.analysis_mode === 'fallback' ? (
+            <div className="bg-rose-900/20 border border-rose-800/50 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-rose-500 flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-rose-400">Analysis Mode: Fallback</h3>
+                  <p className="text-sm text-rose-300 mt-1">
+                    Running in fallback mode due to GitHub API limitations. Only essential files analyzed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : repoData.light_mode ? (
+            <div className="bg-amber-900/20 border border-amber-800/50 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-amber-500 flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-amber-400">Analysis Mode: Light</h3>
+                  <p className="text-sm text-amber-300 mt-1">
+                    Running in light mode (no GitHub token). Only important files analyzed to respect rate limits.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-emerald-900/20 border border-emerald-800/50 rounded-xl p-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-emerald-500 flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-emerald-400">Analysis Mode: Full</h3>
+                  <p className="text-sm text-emerald-300 mt-1">
+                    Running in full analysis mode with complete repository access.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-[#1a1a1a] rounded-xl shadow-lg overflow-hidden border border-[#2a2a2a]">
           <div className="px-6 py-4 border-b border-[#2a2a2a]">
@@ -203,38 +300,64 @@ export default function AnalyzePage() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-[#2a2a2a]">
-              <thead className="bg-[#242424]">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-[#b3b3b3] uppercase tracking-wider">
-                    Path
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-[#b3b3b3] uppercase tracking-wider">
-                    Size
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-[#b3b3b3] uppercase tracking-wider">
-                    Language
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#2a2a2a]">
-                {repoData.files.map((file: RepoFile, index: number) => (
-                  <tr key={index} className="hover:bg-[#242424] transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                      {file.path}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b3b3b3]">
-                      {formatFileSize(file.size)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-md ${getLanguageColor(file.language)}`}>
-                        {file.language}
-                      </span>
-                    </td>
+            {repoData.files.length === 0 && repoData.limited === true ? (
+              <div className="p-8 text-center">
+                <div className="text-rose-400 mb-2">
+                  <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-white mb-1">Partial Analysis Available</h3>
+                <p className="text-[#b3b3b3] mb-4">
+                  Full scan will resume after rate limit reset.
+                </p>
+                {repoData.retry_after && (
+                  <div className="text-sm text-[#b3b3b3]">
+                    <p>Rate limit resets at: {new Date(repoData.retry_after).toLocaleString()}</p>
+                    <p className="mt-1">
+                      Time remaining: {Math.max(0, Math.floor((new Date(repoData.retry_after).getTime() - Date.now()) / 1000 / 60))} minutes
+                    </p>
+                  </div>
+                )}
+                <div className="mt-4 text-xs text-rose-400">
+                  <p>Analysis mode: {repoData.analysis_mode || 'fallback'}</p>
+                  <p className="mt-1">Confidence: low (rate limited)</p>
+                </div>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-[#2a2a2a]">
+                <thead className="bg-[#242424]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#b3b3b3] uppercase tracking-wider">
+                      Path
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#b3b3b3] uppercase tracking-wider">
+                      Size
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#b3b3b3] uppercase tracking-wider">
+                      Language
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#2a2a2a]">
+                  {repoData.files.map((file: RepoFile, index: number) => (
+                    <tr key={index} className="hover:bg-[#242424] transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                        {file.path}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b3b3b3]">
+                        {formatFileSize(file.size)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-md ${getLanguageColor(file.language)}`}>
+                          {file.language}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>

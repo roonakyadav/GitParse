@@ -3,8 +3,8 @@ from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from schemas import AnalyzeRequest, RepoAnalysis, ApiError
-from github import parse_repo_url, process_repo_files
+from schemas import AnalyzeRequest, RepoAnalysis, ApiError, RepoFile
+from github import parse_repo_url, process_repo_files, GitHubRateLimitExceeded, store_repo_snapshot
 from processing.indexer import create_repository_index
 from ai import review_engine
 
@@ -57,15 +57,87 @@ async def analyze_repository(request: AnalyzeRequest):
     
     try:
         # Process repository files
-        files = await process_repo_files(owner, repo)
+        files, analysis_mode = await process_repo_files(owner, repo)
+        
+        # Determine light mode based on the analysis mode
+        is_light_mode = analysis_mode in ["light", "fallback"]
         
         result = RepoAnalysis(
             repo=f"{owner}/{repo}",
-            files=files
+            files=files,
+            light_mode=is_light_mode,  # Add light mode flag to response
+            analysis_mode=analysis_mode  # Add analysis mode to response
         )
+        
+        # Store successful analysis in cache for future fallback
+        store_repo_snapshot(owner, repo, files)
         
         logger.info(f"Analysis completed: {len(files)} files found")
         return result
+    
+    except GitHubRateLimitExceeded as e:
+        logger.warning(f"[RATE_LIMIT] GitHub rate limit exceeded: {str(e)}")
+        
+        # Try to load cached repo snapshot if exists
+        from github import get_cached_repo_snapshot
+        cached_snapshot = get_cached_repo_snapshot(owner, repo)
+        
+        if cached_snapshot and cached_snapshot.get('files'):
+            logger.info("[FALLBACK] Using cached repo snapshot due to rate limit")
+            cached_files = cached_snapshot['files']
+            
+            result = RepoAnalysis(
+                repo=f"{owner}/{repo}",
+                files=cached_files,
+                light_mode=True,
+                analysis_mode="cached"
+            )
+            
+            # Add rate limit information
+            result.limited = True
+            result.reason = "github_rate_limit"
+            result.retry_after = e.reset_time.isoformat()
+            
+            logger.info(f"[FALLBACK] Returned cached analysis with {len(cached_files)} files due to rate limit")
+            return result
+        else:
+            logger.info("[FALLBACK] No cached snapshot available, creating synthetic fallback analysis")
+            # Create synthetic fallback files to ensure we never return empty files
+            synthetic_files = [
+                RepoFile(
+                    path="README.md",
+                    size=0,
+                    language="markdown",
+                    download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/README.md"
+                ),
+                RepoFile(
+                    path="package.json",
+                    size=0,
+                    language="json",
+                    download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/package.json"
+                ),
+                RepoFile(
+                    path="requirements.txt",
+                    size=0,
+                    language="text",
+                    download_url=f"https://api.github.com/repos/{owner}/{repo}/contents/requirements.txt"
+                )
+            ]
+            
+            result = RepoAnalysis(
+                repo=f"{owner}/{repo}",
+                files=synthetic_files,
+                light_mode=True,
+                analysis_mode="fallback"
+            )
+            
+            # Add rate limit information
+            result.limited = True
+            result.reason = "github_rate_limit"
+            result.retry_after = e.reset_time.isoformat()
+            
+            logger.info("[FALLBACK] Returned synthetic fallback analysis with 3 files due to rate limit")
+            return result
     
     except ValueError as e:
         logger.warning(f"Validation error: {str(e)}")

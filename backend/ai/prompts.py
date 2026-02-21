@@ -76,7 +76,13 @@ MANDATORY ANALYSIS AREAS:
 - Assess documentation gaps
 - Identify minor improvements even if no major issues exist
 
-MINIMUM OUTPUT: Return at least 1-2 findings even for clean codebases.
+MINIMUM OUTPUT: Return at least 1-2 findings even for clean codebases. If no specific code issues are found, provide recommendations for code quality improvements such as:
+- Adding missing docstrings to functions
+- Implementing type hints for better code clarity
+- Improving error handling patterns
+- Consistent naming conventions
+- Adding unit tests
+- Refactoring complex functions
 
 Return ONLY JSON. No other text."""
 
@@ -124,8 +130,17 @@ Focus on:
 - Input validation
 - Cryptographic issues
 - Dependency vulnerabilities
+- Missing logging for error conditions
+- Hardcoded secrets
+- Unsafe deserialization
 
-MINIMUM OUTPUT: Return at least 1-2 findings even for secure codebases.
+MINIMUM OUTPUT: Return at least 1-2 findings even for secure codebases. If no specific vulnerabilities are found, provide general security recommendations such as:
+- Implementing proper input validation
+- Adding security headers
+- Using parameterized queries
+- Regular dependency updates
+- Proper error handling without information disclosure
+- Logging security-relevant events
 
 Return ONLY JSON. No other text."""
 
@@ -174,8 +189,15 @@ Focus on:
 - Scalability issues
 - Code organization
 - Module dependencies
+- Documentation completeness
+- Test coverage and structure
 
-MINIMUM OUTPUT: Return at least 1-2 findings even for well-architected codebases.
+MINIMUM OUTPUT: Return at least 1-2 findings even for well-architected codebases. If no specific architectural issues are found, provide recommendations such as:
+- Adding comprehensive documentation (README, architecture diagrams)
+- Improving module organization
+- Implementing proper separation of concerns
+- Adding automated testing structure
+- Establishing architectural decision records
 
 Return ONLY JSON. No other text."""
 
@@ -225,8 +247,16 @@ Focus on:
 - Testing approaches
 - Performance optimization
 - Code organization
+- Error handling techniques
+- Type hinting and static analysis
 
-MINIMUM OUTPUT: Return at least 1-2 findings even for skilled codebases.
+MINIMUM OUTPUT: Return at least 1-2 findings even for skilled codebases. If no specific skill gaps are identified, provide learning recommendations such as:
+- Advanced language features (type hints, decorators, async/await)
+- Modern testing frameworks and methodologies
+- Design patterns and architectural principles
+- Performance optimization techniques
+- Security best practices
+- Documentation and code clarity practices
 
 Return ONLY JSON. No other text."""
 

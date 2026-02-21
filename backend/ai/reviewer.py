@@ -378,6 +378,27 @@ class ReviewEngine:
                 review_logger.error("All review types failed, using fallback analysis")
                 return self._create_fallback_analysis(index_data, important_chunks)
             
+            # Check if results are empty and trigger heuristic analysis if needed
+            all_empty = all(
+                len(result.get("issues", [])) == 0 and 
+                len(result.get("security", [])) == 0 and 
+                len(result.get("architecture", [])) == 0 and 
+                len(result.get("skills", [])) == 0
+                for result in valid_results
+            )
+            
+            if all_empty:
+                review_logger.warning("All analysis results are empty, applying heuristic analysis")
+                heuristic_results = []
+                for review_type in review_types:
+                    heuristic_result = self._heuristic_analysis(important_chunks, review_type)
+                    heuristic_results.append(heuristic_result)
+                
+                # Merge heuristic results with existing results
+                for i, heuristic_result in enumerate(heuristic_results):
+                    if review_types[i] in ["quality", "security", "architecture", "skills"]:
+                        valid_results[i] = heuristic_result
+            
             # Merge results
             final_result = response_parser.merge_results(valid_results)
             
@@ -393,6 +414,27 @@ class ReviewEngine:
                 final_result.security.extend([SecurityIssue(**issue) for issue in fallback.get("security", [])])
                 final_result.architecture.extend([ArchitectureIssue(**issue) for issue in fallback.get("architecture", [])])
                 final_result.skills.extend([SkillGap(**skill) for skill in fallback.get("skills", [])])
+            
+            # Apply heuristic analysis to supplement any remaining empty sections
+            if len(final_result.issues) == 0:
+                review_logger.info("Applying heuristic analysis for quality issues")
+                heuristic_quality = self._heuristic_analysis(important_chunks, "quality")
+                final_result.issues.extend([Issue(**issue) for issue in heuristic_quality.get("issues", [])])
+            
+            if len(final_result.security) == 0:
+                review_logger.info("Applying heuristic analysis for security issues")
+                heuristic_security = self._heuristic_analysis(important_chunks, "security")
+                final_result.security.extend([SecurityIssue(**issue) for issue in heuristic_security.get("security", [])])
+            
+            if len(final_result.architecture) == 0:
+                review_logger.info("Applying heuristic analysis for architecture issues")
+                heuristic_architecture = self._heuristic_analysis(important_chunks, "architecture")
+                final_result.architecture.extend([ArchitectureIssue(**issue) for issue in heuristic_architecture.get("architecture", [])])
+            
+            if len(final_result.skills) == 0:
+                review_logger.info("Applying heuristic analysis for skills")
+                heuristic_skills = self._heuristic_analysis(important_chunks, "skills")
+                final_result.skills.extend([SkillGap(**skill) for skill in heuristic_skills.get("skills", [])])
             
             # Convert to dict for JSON response
             response_data = {
@@ -446,12 +488,51 @@ class ReviewEngine:
             
             # Check for common quality issues
             for chunk in chunks:
-                content = chunk.get("content", "").lower()
+                content = chunk.get("content", "")
                 file_path = chunk.get("file", "unknown")
                 start_line = chunk.get("start_line", 1)
                 
-                # TODO comments
-                if "todo" in content or "fixme" in content:
+                # Check for missing docstrings in functions
+                if "def " in content and ('"""' not in content and "'''" not in content):
+                    issues.append({
+                        "type": "quality",
+                        "severity": "low",
+                        "message": "Missing function docstring",
+                        "file": file_path,
+                        "line": start_line,
+                        "suggestion": "Add docstring to document function purpose and parameters"
+                    })
+                
+                # Check for inconsistent naming (using basic patterns)
+                import re
+                snake_case_pattern = r'def [a-z_][a-zA-Z0-9_]*\('
+                camel_case_pattern = r'def [a-zA-Z][a-zA-Z0-9]*\('
+                if re.search(snake_case_pattern, content) and re.search(camel_case_pattern, content):
+                    issues.append({
+                        "type": "quality",
+                        "severity": "low",
+                        "message": "Inconsistent naming convention detected",
+                        "file": file_path,
+                        "line": start_line,
+                        "suggestion": "Choose one naming convention and stick to it throughout the codebase"
+                    })
+                
+                # Check for missing type hints
+                def_without_hints = re.findall(r'def ([^:]+)\(([^)]*)\):', content)
+                for func_match in def_without_hints:
+                    params = func_match[1]
+                    if ':' not in params and '->' not in content:
+                        issues.append({
+                            "type": "quality",
+                            "severity": "low",
+                            "message": "Missing type hints in function signature",
+                            "file": file_path,
+                            "line": start_line,
+                        	"suggestion": "Add type hints to improve code readability and maintainability"
+                        })
+                
+                # Check for TODO comments
+                if "todo" in content.lower() or "fixme" in content.lower():
                     issues.append({
                         "type": "quality",
                         "severity": "medium",
@@ -461,7 +542,18 @@ class ReviewEngine:
                         "suggestion": "Complete TODO items or remove comments"
                     })
                 
-                # Long functions
+                # Check for missing error handling
+                if "def " in content and "try:" not in content and "except" not in content:
+                    issues.append({
+                        "type": "quality",
+                        "severity": "medium",
+                        "message": "Function may lack error handling",
+                        "file": file_path,
+                        "line": start_line,
+                        "suggestion": "Consider adding try-catch blocks"
+                    })
+                
+                # Check for long functions
                 lines = content.split('\n')
                 if len(lines) > 50:
                     issues.append({
@@ -471,17 +563,6 @@ class ReviewEngine:
                         "file": file_path,
                         "line": start_line,
                         "suggestion": "Consider breaking down into smaller functions"
-                    })
-                
-                # No error handling
-                if "def " in content and "try:" not in content and "except" not in content:
-                    issues.append({
-                        "type": "quality",
-                        "severity": "low",
-                        "message": "Function may lack error handling",
-                        "file": file_path,
-                        "line": start_line,
-                        "suggestion": "Consider adding try-catch blocks"
                     })
             
             result["issues"] = issues
@@ -495,6 +576,19 @@ class ReviewEngine:
                 content = chunk.get("content", "").lower()
                 file_path = chunk.get("file", "unknown")
                 start_line = chunk.get("start_line", 1)
+                
+                # Check for missing logging
+                if any(word in content for word in ["error", "exception", "fail", "invalid"]):
+                    if "log" not in content and "print(" not in content:
+                        security.append({
+                            "type": "security",
+                            "severity": "low",
+                            "message": "Missing logging for error conditions",
+                            "file": file_path,
+                            "line": start_line,
+                            "cwe": "CWE-565",
+                            "suggestion": "Add proper logging for error conditions"
+                        })
                 
                 # SQL injection patterns
                 if "execute(" in content and "select" in content:
@@ -546,6 +640,32 @@ class ReviewEngine:
             file_count = len(set(chunk.get("file", "unknown") for chunk in chunks))
             total_chunks = len(chunks)
             
+            # Check for README depth
+            has_readme = any('readme' in chunk.get('file', '').lower() for chunk in chunks)
+            if not has_readme:
+                architecture.append({
+                    "type": "architecture",
+                    "severity": "low",
+                    "message": "Missing or inadequate documentation",
+                    "file": "README.md",
+                    "line": 1,
+                    "principle": "Documentation",
+                    "suggestion": "Add comprehensive README with project structure, setup instructions, and usage examples"
+                })
+            
+            # Check for test directory
+            has_tests = any('test' in chunk.get('file', '').lower() for chunk in chunks)
+            if not has_tests:
+                architecture.append({
+                    "type": "architecture",
+                    "severity": "medium",
+                    "message": "No tests detected in codebase",
+                    "file": "tests/",
+                    "line": 1,
+                    "principle": "Testability",
+                    "suggestion": "Create comprehensive unit and integration tests"
+                })
+            
             # Too many files in single analysis
             if file_count > 20:
                 architecture.append({
@@ -583,6 +703,17 @@ class ReviewEngine:
             all_content = " ".join(chunk.get("content", "") for chunk in chunks).lower()
             files = [chunk.get("file", "") for chunk in chunks]
             
+            # Check for missing type hints overall
+            if ":" not in all_content and "->" not in all_content:
+                skills.append({
+                    "category": "language",
+                    "skill": "Type Hints",
+                    "level": "beginner",
+                    "gap": "No type hints detected",
+                    "resource": "Python typing documentation",
+                    "priority": "medium"
+                })
+            
             # Language detection
             if any(f.endswith('.py') for f in files):
                 if "class " in all_content and "def __init__" in all_content:
@@ -619,7 +750,7 @@ class ReviewEngine:
                         })
                         break
             
-            # Testing
+            # Testing skills
             if "test" not in all_content and "spec" not in all_content:
                 skills.append({
                     "category": "pattern",
@@ -627,6 +758,17 @@ class ReviewEngine:
                     "level": "beginner",
                     "gap": "No tests found",
                     "resource": "pytest documentation",
+                    "priority": "high"
+                })
+            
+            # Error handling skills
+            if "try" not in all_content and "except" not in all_content:
+                skills.append({
+                    "category": "pattern",
+                    "skill": "Error Handling",
+                    "level": "beginner",
+                    "gap": "No error handling patterns found",
+                    "resource": "Python exception handling best practices",
                     "priority": "high"
                 })
             

@@ -283,7 +283,7 @@ function ReviewPage() {
         {/* Overall Score Card */}
         <div className={`bg-[#1a1a1a] rounded-xl shadow-lg p-8 border-2 ${getScoreBackground(reviewData.score)}`}>
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-white mb-4">📊 Overall Score</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">Overall Score</h2>
             <div className={`text-6xl font-bold mb-4 ${getScoreColor(reviewData.score)}`}>
               {reviewData.score}/100
             </div>
@@ -302,8 +302,8 @@ function ReviewPage() {
 
         {/* Code Quality Issues */}
         <ReviewSection
-          title="⚠️ Code Quality Issues"
-          icon="⚠️"
+          title="Code Quality Issues"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>}
           items={reviewData.issues}
           emptyMessage="No code quality issues found! Great job!"
           renderItem={(item, index) => (
@@ -311,15 +311,15 @@ function ReviewPage() {
               key={index}
               item={item as ReviewItem}
               title="Code Quality Issue"
-              icon="⚠️"
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>}
             />
           )}
         />
 
         {/* Security Warnings */}
         <ReviewSection
-          title="🔐 Security Warnings"
-          icon="🔐"
+          title="Security Warnings"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>}
           items={reviewData.security}
           emptyMessage="No security vulnerabilities detected!"
           renderItem={(item, index) => (
@@ -327,15 +327,15 @@ function ReviewPage() {
               key={index}
               item={item as ReviewItem}
               title="Security Warning"
-              icon="🔐"
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>}
             />
           )}
         />
 
         {/* Architecture Feedback */}
         <ReviewSection
-          title="🏗️ Architecture Feedback"
-          icon="🏗️"
+          title="Architecture Feedback"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
           items={reviewData.architecture}
           emptyMessage="No architecture concerns identified!"
           renderItem={(item, index) => (
@@ -343,15 +343,15 @@ function ReviewPage() {
               key={index}
               item={item as ReviewItem}
               title="Architecture Feedback"
-              icon="🏗️"
+              icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
             />
           )}
         />
 
         {/* Skill Gaps */}
         <ReviewSection
-          title="🎯 Skill Gaps & Learning Resources"
-          icon="🎯"
+          title="Skill Gaps & Learning Resources"
+          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
           items={reviewData.skills}
           emptyMessage="No specific skill gaps identified!"
           renderItem={(item, index) => (
@@ -366,7 +366,7 @@ function ReviewPage() {
         {allSectionsEmpty && (
           <div className="bg-[#1a1a1a] rounded-xl shadow-lg p-8 border border-[#2a2a2a]">
             <div className="text-center">
-              <div className="text-emerald-400 text-4xl mb-4">✅</div>
+              <svg className="w-12 h-12 mx-auto text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               <h3 className="text-lg font-semibold text-white mb-2">No major issues found</h3>
               <p className="text-[#b3b3b3]">
                 Great job! Your codebase appears to be in good condition with no significant issues detected.

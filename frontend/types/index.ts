@@ -9,6 +9,11 @@ export interface RepoAnalysis {
   repo: string;
   files: RepoFile[];
   processed?: ProcessedData;
+  light_mode?: boolean;
+  analysis_mode?: "full" | "light" | "fallback" | "cached";
+  limited?: boolean;
+  reason?: string;
+  retry_after?: string;
 }
 
 export interface ProcessedData {
