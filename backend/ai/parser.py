@@ -94,7 +94,7 @@ class ResponseParser:
         self.cache = {}
     
     def _add_backward_compatibility(self, issue_data: Dict, issue_type: str) -> Dict:
-        """Add backward compatibility for old field names."""
+        """Add backward compatibility for old field names and enforce chunk_id."""
         # Map old field names to new ones
         field_mapping = {
             "message": "problem",
@@ -128,6 +128,10 @@ class ResponseParser:
         # Handle special case for line number conversion
         if "line" in compatible_data and isinstance(compatible_data["line"], int):
             compatible_data["lines"] = str(compatible_data["line"])
+        
+        # ENFORCE chunk_id: if missing, auto-fill with GLOBAL
+        if "chunk_id" not in compatible_data or not compatible_data["chunk_id"]:
+            compatible_data["chunk_id"] = "GLOBAL"
         
         # Add type-specific fields
         if issue_type == "security" and "cwe" not in compatible_data:

@@ -28,9 +28,10 @@ EVIDENCE REQUIREMENTS:
 - Every file reference must exist in provided chunks
 - Every line number must be within chunk ranges
 - Every code snippet must be exact copy from chunks
-- For every finding, reference the CHUNK_ID used
-- When evidence is missing, use 'Not found in chunks'
-- If no specific chunk applies, mark as 'global analysis'"""
+- Every finding MUST reference one or more CHUNK_IDs
+- Do not return 'Not found in chunks'
+- If no specific chunk applies, use chunk_id: "GLOBAL"
+"""
 
 QUALITY_REVIEW_TEMPLATE = """{system_prompt}
 

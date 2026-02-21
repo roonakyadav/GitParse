@@ -52,17 +52,17 @@ class ReviewEngine:
                                 updated_issue['snippet'] = content[:200] + "..."
                             else:
                                 updated_issue['snippet'] = content
-                    elif chunk_id == 'global analysis':
+                    elif chunk_id == 'GLOBAL':
                         # For global analysis, keep the issue but mark appropriately
-                        updated_issue['file'] = 'Multiple files'
+                        updated_issue['file'] = 'Cross-file analysis'
                         updated_issue['lines'] = 'N/A'
                         updated_issue['snippet'] = 'Cross-file analysis'
                     else:
                         # If no specific chunk_id, or chunk_id not found in mapping, mark as global analysis
-                        updated_issue['file'] = 'Multiple files'
+                        updated_issue['file'] = 'Cross-file analysis'
                         updated_issue['lines'] = 'N/A'
                         updated_issue['snippet'] = 'Cross-file analysis'
-                        updated_issue['chunk_id'] = 'global analysis'
+                        updated_issue['chunk_id'] = 'GLOBAL'
                     
                     updated_issues.append(updated_issue)
                 
