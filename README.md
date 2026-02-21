@@ -1,14 +1,22 @@
-# RepoMind AI - Phase 1
+# RepoMind AI - Phase 2: Code Processing Engine
 
-A GitHub repository analysis tool built with FastAPI and Next.js.
+A GitHub repository analysis tool with advanced code parsing, chunking, and dependency mapping.
 
 ## 🚀 Features
 
+### Phase 1 (Repository Ingestion)
 - **Repository Ingestion**: Fetch and analyze GitHub repositories
 - **File Filtering**: Automatically filters irrelevant files (node_modules, build artifacts, etc.)
 - **Language Detection**: Identifies programming languages from file extensions
 - **Local Storage**: Persists analysis results in browser localStorage
-- **Responsive UI**: Clean, modern interface with Tailwind CSS
+
+### Phase 2 (Code Processing Engine)
+- **Language-Specific Parsing**: AST parsing for Python, JavaScript/TypeScript, Java, and Go
+- **Logical Chunking**: Splits code into 300-800 token chunks respecting function/class boundaries
+- **Token Estimation**: OpenAI-compatible token counting with tiktoken
+- **Dependency Mapping**: Builds dependency graphs and detects circular dependencies
+- **Repository Indexing**: Creates searchable index with metadata and statistics
+- **Responsive UI**: Clean, modern interface with processing results
 
 ## 📋 Tech Stack
 
@@ -17,6 +25,10 @@ A GitHub repository analysis tool built with FastAPI and Next.js.
 - **httpx** for API calls
 - **python-dotenv** for environment management
 - **Pydantic** for data validation
+- **tiktoken** for OpenAI-compatible token counting
+- **networkx** for dependency graph analysis
+- **javalang** for Java parsing
+- **tree-sitter** for JavaScript/TypeScript parsing
 
 ### Frontend
 - **Next.js 14** (App Router)
@@ -84,16 +96,28 @@ npm run dev
 
 ## 🌐 Usage
 
+### Phase 1: Repository Analysis
+
 1. Open your browser and navigate to `http://localhost:3000`
 2. Enter a GitHub repository URL (e.g., `https://github.com/owner/repo`)
 3. Click "Analyze Repository"
 4. View the file analysis results
 5. Data persists across browser sessions
 
+### Phase 2: Code Processing
+
+1. After Phase 1 analysis, click "Process Repository" or navigate to `/process`
+2. Wait for processing to complete (parsing, chunking, dependency analysis)
+3. View detailed processing results:
+   - Token statistics and chunk efficiency
+   - Language distribution
+   - Dependency graphs and circular dependencies
+   - Processing metrics
+
 ## 📊 API Endpoints
 
 ### POST /api/analyze
-Analyzes a GitHub repository.
+Analyzes a GitHub repository (Phase 1).
 
 **Request:**
 ```json
@@ -117,13 +141,41 @@ Analyzes a GitHub repository.
 }
 ```
 
+### POST /api/process
+Processes repository with Phase 2 analysis.
+
+**Request:**
+```json
+{
+  "repo": "owner/repo",
+  "files": [...] // Phase 1 output
+}
+```
+
+**Response:**
+```json
+{
+  "repo": "owner/repo",
+  "total_files": 45,
+  "total_chunks": 127,
+  "total_tokens": 45678,
+  "max_tokens": 780,
+  "avg_tokens": 359.8,
+  "languages": {"python": 25, "javascript": 15, "typescript": 5},
+  "chunks": [...],
+  "dependencies": {...}
+}
+```
+
 ### GET /health
 Health check endpoint.
 
 **Response:**
 ```json
 {
-  "status": "healthy"
+  "status": "healthy",
+  "version": "2.0.0",
+  "phase": "Phase 2"
 }
 ```
 
@@ -133,11 +185,16 @@ Health check endpoint.
 Run tests from the backend directory:
 ```bash
 cd backend
-pytest test_main.py -v
+pytest test_main.py -v  # Phase 1 tests
+pytest test_processing.py -v  # Phase 2 tests
 ```
 
-### Frontend Testing
-The frontend includes basic validation and error handling that can be tested manually through the UI.
+### Phase 2 Test Coverage
+- Python AST parsing and chunking
+- Token counting accuracy
+- Dependency graph construction
+- Repository indexing
+- Error handling for malformed code
 
 ## 📁 Project Structure
 
@@ -149,16 +206,27 @@ repomind/
 │   ├── schemas.py           # Pydantic models
 │   ├── config.py            # Configuration
 │   ├── requirements.txt     # Python dependencies
-│   └── test_main.py         # Tests
+│   ├── test_main.py         # Phase 1 tests
+│   ├── test_processing.py   # Phase 2 tests
+│   └── processing/         # Phase 2 processing modules
+│       ├── __init__.py
+│       ├── parser.py        # Language-specific AST parsing
+│       ├── chunker.py      # Logical code chunking
+│       ├── tokenizer.py     # Token estimation
+│       ├── dependency.py   # Dependency mapping
+│       └── indexer.py      # Repository indexing
 ├── frontend/
 │   ├── app/
 │   │   ├── page.tsx         # Home page
 │   │   ├── analyze/
-│   │   │   └── page.tsx     # Analysis results page
+│   │   │   └── page.tsx     # Phase 1 analysis results
+│   │   ├── process/
+│   │   │   └── page.tsx     # Phase 2 processing results
 │   │   ├── layout.tsx       # Root layout
 │   │   └── globals.css      # Global styles
 │   ├── lib/
-│   │   └── storage.ts       # localStorage utilities
+│   │   ├── storage.ts       # localStorage utilities
+│   │   └── config.ts       # Configuration
 │   ├── types/
 │   │   └── index.ts         # TypeScript types
 │   ├── package.json         # Node.js dependencies
@@ -175,6 +243,7 @@ repomind/
 
 - `GITHUB_TOKEN`: Optional GitHub personal access token for higher API rate limits
 - `GROQ_API_KEY`: Groq API key (for future AI analysis features)
+- `NEXT_PUBLIC_API_URL`: Frontend API URL (default: http://localhost:8000)
 
 ### File Filtering
 
@@ -183,31 +252,29 @@ The system automatically ignores:
 - `.env`, `.lock` files
 - Image files (`.png`, `.jpg`, `.mp4`, etc.)
 - Archive files (`.zip`, `.pdf`, etc.)
-- Files larger than 500KB
+- Files larger than 500KB (Phase 1) or 1MB (Phase 2)
+
+### Memory Limits
+
+Phase 2 processing is designed to be memory-efficient:
+- Maximum RAM usage: < 1GB
+- Large files are skipped automatically
+- Processing is parallelized when possible
+- Timeout protection prevents hanging
 
 ## 🚨 Limitations
 
 - Only analyzes public repositories
 - No authentication system
-- No vector database or AI analysis (Phase 2)
+- No vector database or AI analysis (Phase 3)
 - Rate limited by GitHub API (60 requests/hour without token)
+- Large repositories (>1000 files) may take longer to process
 
-## 📝 License
-
-This project is for educational purposes.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 🔄 Next Steps (Phase 2)
+## 🔄 Next Steps (Phase 3)
 
 - AI-powered code analysis
 - Vector database integration
 - Advanced filtering options
 - User authentication
 - Repository comparison features
+- Semantic search capabilities
