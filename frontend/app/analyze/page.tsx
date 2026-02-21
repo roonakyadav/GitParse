@@ -44,6 +44,7 @@ export default function AnalyzePage() {
 
       const data: RepoAnalysis = await response.json();
       setRepoData(data);
+      // Save minimal repo info for tracking purposes
       saveRepoData(data);
       
     } catch (error) {

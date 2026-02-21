@@ -33,16 +33,53 @@ function ReviewPage() {
 
   const performAIReview = async () => {
     try {
-      // Load processed repo data from localStorage
-      const storedData = loadRepoData();
+      // Load processed repo data - may return null if localStorage overflow protection triggered
+      let storedData = loadRepoData();
+      
+      // If no data in localStorage (due to minimal storage), fetch fresh data from backend
       if (!storedData) {
-        setError('No repository data found. Please analyze and process a repository first.');
-        setIsLoading(false);
-        return;
+        const repoUrl = sessionStorage.getItem('repoUrl');
+        if (!repoUrl) {
+          setError('No repository URL provided. Please analyze and process a repository first.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch fresh Phase 1 data from backend API
+        const analyzeResponse = await fetch(`${API_URL}/api/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ repo_url: repoUrl }),
+        });
+
+        if (!analyzeResponse.ok) {
+          const errorData = await analyzeResponse.json();
+          throw new Error(errorData.detail || 'Failed to fetch repository data');
+        }
+
+        const phase1Data = await analyzeResponse.json();
+
+        // Fetch fresh processed data from backend API
+        const processResponse = await fetch(`${API_URL}/api/process`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(phase1Data),
+        });
+
+        if (!processResponse.ok) {
+          const errorData = await processResponse.json();
+          throw new Error(errorData.detail || 'Failed to fetch processed repository data');
+        }
+
+        storedData = { ...phase1Data, processed: await processResponse.json() };
       }
 
-      // Check if we have processed data (Phase 2)
-      if (!storedData.processed) {
+      // Check if storedData is null or if we have processed data (Phase 2)
+      if (!storedData || !storedData.processed) {
         setError('Repository processing data not found. Please complete the processing step first.');
         setIsLoading(false);
         return;

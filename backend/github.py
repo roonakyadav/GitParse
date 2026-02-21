@@ -131,7 +131,10 @@ async def fetch_repo_tree(owner: str, repo: str) -> List[Dict[str, Any]]:
         headers['Authorization'] = f'token {GITHUB_TOKEN}'
         logger.info(f"Using GitHub token for {owner}/{repo}")
     else:
-        logger.info(f"Making anonymous request to {owner}/{repo}")
+        logger.warning(f"No GitHub token configured for {owner}/{repo}. Using anonymous access with rate limits.")
+        
+    # Add User-Agent header to comply with GitHub API requirements
+    headers['User-Agent'] = 'RepoMind-Analyzer/1.0'
     
     timeout = httpx.Timeout(REQUEST_TIMEOUT)
     
@@ -145,9 +148,11 @@ async def fetch_repo_tree(owner: str, repo: str) -> List[Dict[str, Any]]:
             
             if response.status_code == 404:
                 raise ValueError("Repository not found or private")
-            elif response.status_code == 403:
-                if 'rate limit' in response.text.lower():
-                    raise ValueError("GitHub API rate limit exceeded. Please add a GitHub token or wait.")
+            elif response.status_code == 403 or response.status_code == 429:
+                # Check if it's a rate limit issue
+                rate_limit_remaining = response.headers.get('X-RateLimit-Remaining', '0')
+                if 'rate limit' in response.text.lower() or 'limit exceeded' in response.text.lower() or rate_limit_remaining == '0':
+                    raise ValueError("GitHub rate limit exceeded. Please configure GITHUB_TOKEN.")
                 else:
                     raise ValueError("Access forbidden. Repository may be private.")
             elif response.status_code != 200:
@@ -163,9 +168,11 @@ async def fetch_repo_tree(owner: str, repo: str) -> List[Dict[str, Any]]:
             
             response = await client.get(tree_url, headers=headers)
             
-            if response.status_code == 403:
-                if 'rate limit' in response.text.lower():
-                    raise ValueError("GitHub API rate limit exceeded while fetching tree.")
+            if response.status_code == 403 or response.status_code == 429:
+                # Check if it's a rate limit issue
+                rate_limit_remaining = response.headers.get('X-RateLimit-Remaining', '0')
+                if 'rate limit' in response.text.lower() or 'limit exceeded' in response.text.lower() or rate_limit_remaining == '0':
+                    raise ValueError("GitHub rate limit exceeded. Please configure GITHUB_TOKEN.")
                 else:
                     raise ValueError("Access forbidden while fetching tree.")
             elif response.status_code != 200:

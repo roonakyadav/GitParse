@@ -18,14 +18,42 @@ export default function ProcessPage() {
 
   const processRepository = async () => {
     try {
-      // Load Phase 1 data from localStorage
-      const phase1Data = loadRepoData();
+      // Load Phase 1 data - may return null if localStorage overflow protection triggered
+      let phase1Data = loadRepoData();
+      
+      // If no data in localStorage (due to minimal storage), fetch fresh data from backend
+      if (!phase1Data) {
+        const repoUrl = sessionStorage.getItem('repoUrl');
+        if (!repoUrl) {
+          setError('No repository URL provided. Please analyze a repository first.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch fresh Phase 1 data from backend API
+        const analyzeResponse = await fetch(`${API_URL}/api/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ repo_url: repoUrl }),
+        });
+
+        if (!analyzeResponse.ok) {
+          const errorData = await analyzeResponse.json();
+          throw new Error(errorData.detail || 'Failed to fetch repository data');
+        }
+
+        phase1Data = await analyzeResponse.json();
+      }
+      
+      // Check if phase1Data is null
       if (!phase1Data) {
         setError('No repository data found. Please analyze a repository first.');
         setIsLoading(false);
         return;
       }
-
+      
       console.log(`Processing repository: ${phase1Data.repo}`);
       
       // Always call Phase 2 processing API for fresh processing
@@ -51,8 +79,10 @@ export default function ProcessPage() {
       
       setProcessedData(data);
       
-      // Save processed data
-      saveRepoData({ ...phase1Data, processed: data });
+      // Save minimal repo info for tracking purposes
+      if (phase1Data && phase1Data.repo) {
+        saveRepoData({ ...phase1Data, processed: data });
+      }
       
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
